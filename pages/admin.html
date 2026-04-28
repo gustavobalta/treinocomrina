@@ -80,6 +80,24 @@
 
         <form id="novoAlunoForm" class="admin-form">
 
+          <!-- Foto -->
+          <div class="form-section-label">Foto</div>
+          <div class="avatar-upload-wrap">
+            <div class="avatar-preview" id="avatarPreview">
+              <span id="avatarInitial">?</span>
+              <img id="avatarPreviewImg" class="hidden" alt="Foto do aluno" />
+            </div>
+            <div class="avatar-upload-info">
+              <label for="alunoFoto" class="btn-secondary" style="cursor:pointer; display:inline-block;">
+                Escolher foto
+              </label>
+              <input type="file" id="alunoFoto" accept="image/*" class="hidden" />
+              <p style="font-size:0.78rem; color:var(--white-muted); margin-top:0.35rem;">
+                JPG ou PNG. Opcional — o aluno também pode adicionar depois.
+              </p>
+            </div>
+          </div>
+
           <div class="form-section-label">Dados pessoais</div>
           <div class="form-row">
             <div class="form-group">
@@ -169,6 +187,47 @@
     </div>
 
   </main>
+
+  <!-- Modal: editar aula -->
+  <div id="editAulaModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Editar Aula</h3>
+        <button class="modal-close" id="editAulaClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="editAulaForm" class="admin-form">
+          <input type="hidden" id="editAulaId" />
+          <div class="form-group">
+            <label>Dia da semana</label>
+            <select id="editDiaSemana" required>
+              <option value="Segunda">Segunda-feira</option>
+              <option value="Terça">Terça-feira</option>
+              <option value="Quarta">Quarta-feira</option>
+              <option value="Quinta">Quinta-feira</option>
+              <option value="Sexta">Sexta-feira</option>
+              <option value="Sábado">Sábado</option>
+              <option value="Domingo">Domingo</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Horário</label>
+            <input type="time" id="editHorario" required />
+          </div>
+          <div class="form-group">
+            <label>Vagas</label>
+            <input type="number" id="editVagas" min="1" max="100" required />
+          </div>
+          <div class="form-group">
+            <label>Descrição (opcional)</label>
+            <input type="text" id="editDescricao" placeholder="Ex: Funcional, Musculação..." />
+          </div>
+          <div id="editAulaError" class="error-msg hidden"></div>
+          <button type="submit" class="btn-primary">Salvar alterações</button>
+        </form>
+      </div>
+    </div>
+  </div>
 
   <!-- Modal: inscritos na aula -->
   <div id="inscritosModal" class="modal hidden">

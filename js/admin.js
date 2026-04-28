@@ -1,4 +1,4 @@
-import { auth, db } from "./firebase.js";
+import { auth, db, storage } from "./firebase.js";
 import {
   onAuthStateChanged, signOut,
   createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,
@@ -7,6 +7,9 @@ import {
   doc, getDoc, setDoc, collection, getDocs, addDoc, deleteDoc,
   query, where, updateDoc,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  ref, uploadBytes, getDownloadURL,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 const DIAS_ORDER = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 
@@ -15,12 +18,10 @@ let adminPassword = "";
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) { window.location.href = "../index.html"; return; }
-
   const snap = await getDoc(doc(db, "users", user.uid));
   if (!snap.exists() || snap.data().role !== "admin") {
     window.location.href = "../index.html"; return;
   }
-
   adminEmail = user.email;
   await loadAdminAulas();
   await loadAlunos();
@@ -41,6 +42,25 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   adminPassword = "";
   await signOut(auth);
   window.location.href = "../index.html";
+});
+
+// ===== PREVIEW FOTO NO CADASTRO =====
+document.getElementById("alunoFoto").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    document.getElementById("avatarInitial").classList.add("hidden");
+    const img = document.getElementById("avatarPreviewImg");
+    img.src = ev.target.result;
+    img.classList.remove("hidden");
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById("alunoNome").addEventListener("input", (e) => {
+  const initial = e.target.value.trim()[0] || "?";
+  document.getElementById("avatarInitial").textContent = initial.toUpperCase();
 });
 
 // ===== CRIAR AULA =====
@@ -107,6 +127,9 @@ async function loadAdminAulas() {
         <button class="btn-secondary" data-action="ver-inscritos" data-aula="${aula.id}" data-label="${aula.dia} ${aula.horario}">
           Ver inscritos
         </button>
+        <button class="btn-secondary" data-action="editar-aula" data-aula="${aula.id}">
+          Editar
+        </button>
         <button class="btn-danger" data-action="excluir-aula" data-aula="${aula.id}">
           Excluir
         </button>
@@ -118,7 +141,9 @@ async function loadAdminAulas() {
   container.querySelectorAll("[data-action='ver-inscritos']").forEach((btn) => {
     btn.addEventListener("click", () => openInscritosModal(btn.dataset.aula, btn.dataset.label));
   });
-
+  container.querySelectorAll("[data-action='editar-aula']").forEach((btn) => {
+    btn.addEventListener("click", () => openEditAulaModal(btn.dataset.aula));
+  });
   container.querySelectorAll("[data-action='excluir-aula']").forEach((btn) => {
     btn.addEventListener("click", () => excluirAula(btn.dataset.aula));
   });
@@ -132,6 +157,47 @@ async function excluirAula(aulaId) {
   for (const d of snap.docs) await deleteDoc(d.ref);
   await loadAdminAulas();
 }
+
+// ===== MODAL EDITAR AULA =====
+const editAulaModal = document.getElementById("editAulaModal");
+document.getElementById("editAulaClose").addEventListener("click", () => editAulaModal.classList.add("hidden"));
+editAulaModal.addEventListener("click", (e) => { if (e.target === editAulaModal) editAulaModal.classList.add("hidden"); });
+
+async function openEditAulaModal(aulaId) {
+  const snap = await getDoc(doc(db, "aulas", aulaId));
+  if (!snap.exists()) return;
+  const aula = snap.data();
+
+  document.getElementById("editAulaId").value = aulaId;
+  document.getElementById("editDiaSemana").value = aula.dia;
+  document.getElementById("editHorario").value = aula.horario;
+  document.getElementById("editVagas").value = aula.vagas;
+  document.getElementById("editDescricao").value = aula.descricao || "";
+  document.getElementById("editAulaError").classList.add("hidden");
+
+  editAulaModal.classList.remove("hidden");
+}
+
+document.getElementById("editAulaForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorDiv = document.getElementById("editAulaError");
+  errorDiv.classList.add("hidden");
+
+  const aulaId = document.getElementById("editAulaId").value;
+  const dia = document.getElementById("editDiaSemana").value;
+  const horario = document.getElementById("editHorario").value;
+  const vagas = parseInt(document.getElementById("editVagas").value);
+  const descricao = document.getElementById("editDescricao").value.trim();
+
+  try {
+    await updateDoc(doc(db, "aulas", aulaId), { dia, horario, vagas, descricao });
+    editAulaModal.classList.add("hidden");
+    await loadAdminAulas();
+  } catch (err) {
+    errorDiv.textContent = "Erro ao salvar. Tente novamente.";
+    errorDiv.classList.remove("hidden");
+  }
+});
 
 // ===== MODAL INSCRITOS =====
 const inscritosModal = document.getElementById("inscritosModal");
@@ -164,8 +230,8 @@ async function openInscritosModal(aulaId, label) {
     const item = document.createElement("div");
     item.className = "modal-aluno-item";
     item.innerHTML = `
+      ${avatarHtml(u, "avatar-sm")}
       <span>${u.nome || "—"}</span>
-      <span style="color: var(--white-muted); font-size:0.78rem">${u.email || ""}</span>
     `;
     bodyDiv.appendChild(item);
   });
@@ -194,6 +260,7 @@ document.getElementById("novoAlunoForm").addEventListener("submit", async (e) =>
   const cep = document.getElementById("alunoCep").value.trim();
   const inicio = document.getElementById("alunoInicio").value;
   const obs = document.getElementById("alunoObs").value.trim();
+  const fotoFile = document.getElementById("alunoFoto").files[0];
 
   btn.disabled = true;
   btn.textContent = "Cadastrando...";
@@ -208,14 +275,21 @@ document.getElementById("novoAlunoForm").addEventListener("submit", async (e) =>
       }
     }
 
-    // Senha aleatória temporária (o aluno vai redefinir pelo email)
     const senhaTemp = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10);
-
     const cred = await createUserWithEmailAndPassword(auth, email, senhaTemp);
     const alunoUid = cred.user.uid;
 
+    // Upload da foto se fornecida
+    let fotoUrl = "";
+    if (fotoFile) {
+      btn.textContent = "Enviando foto...";
+      const storageRef = ref(storage, `fotos/${alunoUid}`);
+      await uploadBytes(storageRef, fotoFile);
+      fotoUrl = await getDownloadURL(storageRef);
+    }
+
     await setDoc(doc(db, "users", alunoUid), {
-      nome, email, nascimento, cpf, rg, telefone,
+      nome, email, nascimento, cpf, rg, telefone, fotoUrl,
       endereco: { rua, numero, bairro, cidade, estado, cep },
       inicio, obs,
       role: "aluno",
@@ -223,13 +297,15 @@ document.getElementById("novoAlunoForm").addEventListener("submit", async (e) =>
       criadoEm: new Date(),
     });
 
-    // Envia email para o aluno definir a senha
+    btn.textContent = "Enviando e-mail...";
     await sendPasswordResetEmail(auth, email);
-
-    // Reautentica o admin
     await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
 
     e.target.reset();
+    document.getElementById("avatarInitial").textContent = "?";
+    document.getElementById("avatarInitial").classList.remove("hidden");
+    document.getElementById("avatarPreviewImg").classList.add("hidden");
+
     successDiv.textContent = `Aluno "${nome}" cadastrado! E-mail de acesso enviado para ${email}.`;
     successDiv.classList.remove("hidden");
     await loadAlunos();
@@ -275,6 +351,7 @@ async function loadAlunos() {
     const item = document.createElement("div");
     item.className = `aluno-item${bloqueado ? " bloqueado" : ""}`;
     item.innerHTML = `
+      ${avatarHtml(aluno, "avatar-md")}
       <div class="aluno-info">
         <div class="aluno-nome">${aluno.nome || "Sem nome"}</div>
         <div class="aluno-email">${aluno.email || ""}</div>
@@ -302,7 +379,6 @@ async function loadAlunos() {
   container.querySelectorAll("[data-action='toggle-block']").forEach((btn) => {
     btn.addEventListener("click", () => toggleBlock(btn));
   });
-
   container.querySelectorAll("[data-action='ver-aluno']").forEach((btn) => {
     btn.addEventListener("click", () => openAlunoModal(btn.dataset.uid));
   });
@@ -337,6 +413,7 @@ async function openAlunoModal(uid) {
     .filter(Boolean).join(", ") || "—";
 
   body.innerHTML = `
+    <div class="detail-avatar">${avatarHtml(a, "avatar-lg")}</div>
     <div class="detail-grid">
       <div class="detail-item"><span class="detail-label">Nome</span><span>${a.nome || "—"}</span></div>
       <div class="detail-item"><span class="detail-label">E-mail</span><span>${a.email || "—"}</span></div>
@@ -350,6 +427,15 @@ async function openAlunoModal(uid) {
       ${a.obs ? `<div class="detail-item detail-full"><span class="detail-label">Observações</span><span>${a.obs}</span></div>` : ""}
     </div>
   `;
+}
+
+// ===== HELPERS =====
+function avatarHtml(user, sizeClass) {
+  if (user.fotoUrl) {
+    return `<img src="${user.fotoUrl}" class="avatar ${sizeClass}" alt="${user.nome}" />`;
+  }
+  const initial = (user.nome || "?")[0].toUpperCase();
+  return `<div class="avatar avatar-initial ${sizeClass}">${initial}</div>`;
 }
 
 function formatDate(val) {

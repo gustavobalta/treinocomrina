@@ -523,6 +523,106 @@ body {
   padding: 0.5rem 0;
 }
 
+/* ===== AVATAR ===== */
+.avatar {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.avatar-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--white);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.avatar-sm { width: 32px; height: 32px; font-size: 0.8rem; }
+.avatar-md { width: 44px; height: 44px; font-size: 1rem; }
+.avatar-lg { width: 80px; height: 80px; font-size: 1.8rem; }
+
+.header-avatar-wrap {
+  position: relative;
+  cursor: pointer;
+}
+
+.header-avatar-wrap::after {
+  content: "✎";
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  background: var(--accent);
+  color: white;
+  font-size: 0.55rem;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== AVATAR UPLOAD (cadastro) ===== */
+.avatar-upload-wrap {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.avatar-preview {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--black-input);
+  border: 2px dashed var(--black-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--white-muted);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-upload-info { display: flex; flex-direction: column; }
+
+/* ===== TOAST ===== */
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--black-card);
+  border: 1px solid var(--black-border);
+  color: var(--white);
+  padding: 0.65rem 1.25rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 600;
+  z-index: 300;
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+}
+
+/* ===== DETAIL AVATAR ===== */
+.detail-avatar {
+  display: flex;
+  justify-content: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--black-border);
+  margin-bottom: 0.5rem;
+}
+
 /* ===== TABS ===== */
 .tabs {
   display: flex;

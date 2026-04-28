@@ -11,6 +11,10 @@
   <header class="app-header">
     <img src="../logo/logo.png" alt="Rina Training Club" class="header-logo" />
     <div class="header-right">
+      <div class="header-avatar-wrap">
+        <div id="headerAvatar" class="avatar avatar-sm avatar-initial" title="Alterar foto">?</div>
+        <input type="file" id="fotoInput" accept="image/*" class="hidden" />
+      </div>
       <span id="userNameDisplay" class="user-name"></span>
       <button class="btn-logout" id="logoutBtn">Sair</button>
     </div>
@@ -25,7 +29,6 @@
     <section class="section-card">
       <h2 class="section-title">Aulas Disponíveis</h2>
       <p class="section-subtitle">Selecione os treinos que deseja participar esta semana.</p>
-
       <div id="aulasList" class="aulas-grid">
         <p class="loading-text">Carregando aulas...</p>
       </div>
@@ -39,6 +42,9 @@
     </section>
 
   </main>
+
+  <!-- Toast de feedback -->
+  <div id="toast" class="toast hidden"></div>
 
   <script type="module" src="../js/firebase.js"></script>
   <script type="module" src="../js/aluno.js"></script>

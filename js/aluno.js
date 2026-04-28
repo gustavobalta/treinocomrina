@@ -1,9 +1,13 @@
-import { auth, db } from "./firebase.js";
+import { auth, db, storage } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   doc, getDoc, collection, getDocs,
-  addDoc, deleteDoc, query, where, orderBy,
+  addDoc, deleteDoc, query, where,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  ref, uploadBytes, getDownloadURL, updateDoc,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+import { updateDoc as firestoreUpdateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 let currentUser = null;
 let userData = null;
@@ -20,6 +24,7 @@ onAuthStateChanged(auth, async (user) => {
   userData = snap.data();
 
   document.getElementById("userNameDisplay").textContent = userData.nome || user.email;
+  renderHeaderAvatar();
 
   if (userData.bloqueado) {
     document.getElementById("blockedBanner").classList.remove("hidden");
@@ -34,9 +39,52 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   window.location.href = "../index.html";
 });
 
-// Ordem dos dias para ordenação
+// ===== AVATAR NO HEADER =====
+function renderHeaderAvatar() {
+  const el = document.getElementById("headerAvatar");
+  if (userData.fotoUrl) {
+    el.outerHTML = `<img id="headerAvatar" src="${userData.fotoUrl}" class="avatar avatar-sm" title="Alterar foto" style="cursor:pointer" alt="Foto" />`;
+  } else {
+    el.textContent = (userData.nome || "?")[0].toUpperCase();
+  }
+  document.getElementById("headerAvatar").addEventListener("click", () => {
+    document.getElementById("fotoInput").click();
+  });
+}
+
+// ===== UPLOAD DE FOTO PELO ALUNO =====
+document.getElementById("fotoInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file || !currentUser) return;
+
+  showToast("Enviando foto...");
+
+  try {
+    const storageRef = ref(storage, `fotos/${currentUser.uid}`);
+    await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(storageRef);
+    await firestoreUpdateDoc(doc(db, "users", currentUser.uid), { fotoUrl: url });
+    userData.fotoUrl = url;
+    renderHeaderAvatar();
+    showToast("Foto atualizada!");
+  } catch (err) {
+    showToast("Erro ao enviar foto. Tente novamente.");
+  }
+});
+
+// ===== TOAST =====
+function showToast(msg) {
+  const toast = document.getElementById("toast");
+  toast.textContent = msg;
+  toast.classList.remove("hidden");
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.add("hidden"), 3000);
+}
+
+// ===== ORDEM DOS DIAS =====
 const DIAS_ORDER = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 
+// ===== CARREGAR AULAS =====
 async function loadAulas() {
   const container = document.getElementById("aulasList");
 
@@ -60,7 +108,6 @@ async function loadAulas() {
     return;
   }
 
-  // Conta inscritos por aula
   const allInscricoes = await getDocs(collection(db, "inscricoes"));
   const countMap = {};
   allInscricoes.docs.forEach((d) => {
@@ -88,7 +135,6 @@ async function loadAulas() {
     container.appendChild(card);
   });
 
-  // Eventos nos botões
   container.querySelectorAll("[data-action]").forEach((btn) => {
     btn.addEventListener("click", () => handleInscricao(btn));
   });
@@ -132,6 +178,7 @@ async function handleInscricao(btn) {
   await loadMinhasAulas();
 }
 
+// ===== MINHAS INSCRIÇÕES =====
 async function loadMinhasAulas() {
   const container = document.getElementById("minhasAulas");
 
