@@ -252,40 +252,31 @@ document.getElementById("novoAlunoForm").addEventListener("submit", async (e) =>
   const fotoFile = document.getElementById("alunoFoto").files[0];
 
   try {
-    // Salva dados pendentes no localStorage para usar após o aluno confirmar o email
-    const dadosPendentes = {
-      nome, nascimento, cpf, rg, telefone,
+    // Salva dados primeiro — assim ficam registrados mesmo se o envio falhar
+    const { error: dbErr } = await supabase.from("pending_users").upsert({
+      email, nome, nascimento: nascimento || null, cpf, rg, telefone,
       rua, numero, bairro, cidade, estado, cep,
-      inicio, obs, role: "aluno", bloqueado: false,
-    };
+      inicio: inicio || null, obs,
+    });
+    if (dbErr) throw dbErr;
 
-    // Envia convite por email — o aluno clica no link e define a senha
+    // Envia convite por email
+    btn.textContent = "Enviando e-mail...";
     const { error: inviteErr } = await supabase.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: true,
         emailRedirectTo: "https://gustavobalta.github.io/treinocomrina/pages/reset-password.html",
-        data: dadosPendentes,
       },
     });
-
     if (inviteErr) throw inviteErr;
-
-    // Salva perfil provisório no Firestore (sem UID ainda — será preenchido no primeiro login)
-    // Usamos email como chave temporária na tabela pending_users
-    await supabase.from("pending_users").upsert({
-      email, nome, nascimento, cpf, rg, telefone,
-      rua, numero, bairro, cidade, estado, cep,
-      inicio, obs,
-    });
 
     e.target.reset();
     document.getElementById("avatarInitial").textContent = "?";
     document.getElementById("avatarInitial").classList.remove("hidden");
     document.getElementById("avatarPreviewImg").classList.add("hidden");
     cadastroAlunoModal.classList.add("hidden");
-
-    alert(`Convite enviado para ${email}! O aluno receberá um e-mail para definir a senha.`);
+    await loadAlunos();
   } catch (err) {
     console.error(err);
     errorDiv.textContent = friendlyAlunoError(err.message);
