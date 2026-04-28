@@ -252,39 +252,31 @@ document.getElementById("novoAlunoForm").addEventListener("submit", async (e) =>
   const fotoFile = document.getElementById("alunoFoto").files[0];
 
   try {
-    // Cria usuário via Supabase Admin (invite)
-    const senhaTemp = Math.random().toString(36).slice(-10) + "A1!";
-    const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
+    // Salva dados pendentes no localStorage para usar após o aluno confirmar o email
+    const dadosPendentes = {
+      nome, nascimento, cpf, rg, telefone,
+      rua, numero, bairro, cidade, estado, cep,
+      inicio, obs, role: "aluno", bloqueado: false,
+    };
+
+    // Envia convite por email — o aluno clica no link e define a senha
+    const { error: inviteErr } = await supabase.auth.signInWithOtp({
       email,
-      password: senhaTemp,
-      email_confirm: true,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: "https://gustavobalta.github.io/treinocomrina/pages/reset-password.html",
+        data: dadosPendentes,
+      },
     });
 
-    if (authErr) throw authErr;
-    const uid = authData.user.id;
+    if (inviteErr) throw inviteErr;
 
-    // Upload foto
-    let foto_url = "";
-    if (fotoFile) {
-      btn.textContent = "Enviando foto...";
-      const ext = fotoFile.name.split(".").pop();
-      const path = `fotos/${uid}.${ext}`;
-      await supabase.storage.from("fotos").upload(path, fotoFile, { upsert: true });
-      const { data: urlData } = supabase.storage.from("fotos").getPublicUrl(path);
-      foto_url = urlData.publicUrl;
-    }
-
-    // Salva perfil
-    await supabase.from("users").insert({
-      id: uid, nome, email, nascimento, cpf, rg, telefone, foto_url,
-      rua, numero, bairro, cidade, estado, cep, inicio, obs,
-      role: "aluno", bloqueado: false,
-    });
-
-    // Envia email de redefinição de senha
-    btn.textContent = "Enviando e-mail...";
-    await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "https://gustavobalta.github.io/treinocomrina/pages/reset-password.html",
+    // Salva perfil provisório no Firestore (sem UID ainda — será preenchido no primeiro login)
+    // Usamos email como chave temporária na tabela pending_users
+    await supabase.from("pending_users").upsert({
+      email, nome, nascimento, cpf, rg, telefone,
+      rua, numero, bairro, cidade, estado, cep,
+      inicio, obs,
     });
 
     e.target.reset();
@@ -292,7 +284,8 @@ document.getElementById("novoAlunoForm").addEventListener("submit", async (e) =>
     document.getElementById("avatarInitial").classList.remove("hidden");
     document.getElementById("avatarPreviewImg").classList.add("hidden");
     cadastroAlunoModal.classList.add("hidden");
-    await loadAlunos();
+
+    alert(`Convite enviado para ${email}! O aluno receberá um e-mail para definir a senha.`);
   } catch (err) {
     console.error(err);
     errorDiv.textContent = friendlyAlunoError(err.message);
