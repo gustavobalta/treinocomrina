@@ -305,44 +305,114 @@ function friendlyAlunoError(msg) {
 // ===== CARREGAR ALUNOS =====
 async function loadAlunos() {
   const container = document.getElementById("alunosList");
+  container.innerHTML = '<p class="loading-text">Carregando alunos...</p>';
 
-  const { data: alunos } = await supabase
-    .from("users").select("*").eq("role", "aluno").order("nome");
+  const [{ data: alunos }, { data: pendentes }] = await Promise.all([
+    supabase.from("users").select("*").eq("role", "aluno").order("nome"),
+    supabase.from("pending_users").select("*").order("created_at", { ascending: false }),
+  ]);
 
-  if (!alunos || alunos.length === 0) {
+  const temAlunos = alunos && alunos.length > 0;
+  const temPendentes = pendentes && pendentes.length > 0;
+
+  if (!temAlunos && !temPendentes) {
     container.innerHTML = '<p class="empty-text">Nenhum aluno cadastrado.</p>';
     return;
   }
 
   container.innerHTML = "";
-  alunos.forEach((aluno) => {
-    const bloqueado = aluno.bloqueado === true;
-    const item = document.createElement("div");
-    item.className = `aluno-item${bloqueado ? " bloqueado" : ""}`;
-    item.innerHTML = `
-      ${avatarHtml(aluno, "avatar-md")}
-      <div class="aluno-info">
-        <div class="aluno-nome">${aluno.nome || "Sem nome"}</div>
-        <div class="aluno-email">${aluno.email || ""}</div>
-        <span class="aluno-status-badge ${bloqueado ? "bloqueado" : "ativo"}">
-          ${bloqueado ? "Bloqueado" : "Ativo"}
-        </span>
-      </div>
-      <div class="aluno-actions">
-        <button class="btn-secondary" data-action="ver-aluno" data-uid="${aluno.id}">Detalhes</button>
-        <button class="btn-secondary" data-action="editar-aluno" data-uid="${aluno.id}">Editar</button>
-        <button class="${bloqueado ? "btn-success" : "btn-danger"}" data-action="toggle-block"
-          data-uid="${aluno.id}" data-bloqueado="${bloqueado}">
-          ${bloqueado ? "Desbloquear" : "Bloquear"}
-        </button>
-      </div>
-    `;
-    container.appendChild(item);
-  });
 
-  container.querySelectorAll("[data-action='toggle-block']").forEach((btn) => btn.addEventListener("click", () => toggleBlock(btn)));
-  container.querySelectorAll("[data-action='ver-aluno']").forEach((btn) => btn.addEventListener("click", () => openAlunoModal(btn.dataset.uid)));
-  container.querySelectorAll("[data-action='editar-aluno']").forEach((btn) => btn.addEventListener("click", () => openEditAlunoModal(btn.dataset.uid)));
+  // Pendentes primeiro
+  if (temPendentes) {
+    const secLabel = document.createElement("div");
+    secLabel.className = "alunos-secao-label";
+    secLabel.textContent = "Aguardando confirmação de e-mail";
+    container.appendChild(secLabel);
+
+    pendentes.forEach((p) => {
+      const item = document.createElement("div");
+      item.className = "aluno-item pendente";
+      item.innerHTML = `
+        <div class="avatar avatar-md avatar-initial" style="background:var(--warning); color:#000">${(p.nome || "?")[0].toUpperCase()}</div>
+        <div class="aluno-info">
+          <div class="aluno-nome">${p.nome || "Sem nome"}</div>
+          <div class="aluno-email">${p.email}</div>
+          <span class="aluno-status-badge pendente">Pendente</span>
+        </div>
+        <div class="aluno-actions">
+          <button class="btn-secondary" data-action="reenviar" data-email="${p.email}">Reenviar e-mail</button>
+          <button class="btn-danger" data-action="excluir-pendente" data-email="${p.email}">Excluir</button>
+        </div>
+      `;
+      container.appendChild(item);
+    });
+
+    container.querySelectorAll("[data-action='reenviar']").forEach((btn) =>
+      btn.addEventListener("click", () => reenviarConvite(btn.dataset.email, btn))
+    );
+    container.querySelectorAll("[data-action='excluir-pendente']").forEach((btn) =>
+      btn.addEventListener("click", () => excluirPendente(btn.dataset.email))
+    );
+  }
+
+  // Alunos ativos
+  if (temAlunos) {
+    if (temPendentes) {
+      const secLabel = document.createElement("div");
+      secLabel.className = "alunos-secao-label";
+      secLabel.textContent = "Alunos ativos";
+      container.appendChild(secLabel);
+    }
+
+    alunos.forEach((aluno) => {
+      const bloqueado = aluno.bloqueado === true;
+      const item = document.createElement("div");
+      item.className = `aluno-item${bloqueado ? " bloqueado" : ""}`;
+      item.innerHTML = `
+        ${avatarHtml(aluno, "avatar-md")}
+        <div class="aluno-info">
+          <div class="aluno-nome">${aluno.nome || "Sem nome"}</div>
+          <div class="aluno-email">${aluno.email || ""}</div>
+          <span class="aluno-status-badge ${bloqueado ? "bloqueado" : "ativo"}">
+            ${bloqueado ? "Bloqueado" : "Ativo"}
+          </span>
+        </div>
+        <div class="aluno-actions">
+          <button class="btn-secondary" data-action="ver-aluno" data-uid="${aluno.id}">Detalhes</button>
+          <button class="btn-secondary" data-action="editar-aluno" data-uid="${aluno.id}">Editar</button>
+          <button class="${bloqueado ? "btn-success" : "btn-danger"}" data-action="toggle-block"
+            data-uid="${aluno.id}" data-bloqueado="${bloqueado}">
+            ${bloqueado ? "Desbloquear" : "Bloquear"}
+          </button>
+        </div>
+      `;
+      container.appendChild(item);
+    });
+
+    container.querySelectorAll("[data-action='toggle-block']").forEach((btn) => btn.addEventListener("click", () => toggleBlock(btn)));
+    container.querySelectorAll("[data-action='ver-aluno']").forEach((btn) => btn.addEventListener("click", () => openAlunoModal(btn.dataset.uid)));
+    container.querySelectorAll("[data-action='editar-aluno']").forEach((btn) => btn.addEventListener("click", () => openEditAlunoModal(btn.dataset.uid)));
+  }
+}
+
+async function reenviarConvite(email, btn) {
+  btn.disabled = true;
+  btn.textContent = "Enviando...";
+  await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: true,
+      emailRedirectTo: "https://gustavobalta.github.io/treinocomrina/pages/reset-password.html",
+    },
+  });
+  btn.textContent = "Enviado!";
+  setTimeout(() => { btn.disabled = false; btn.textContent = "Reenviar e-mail"; }, 3000);
+}
+
+async function excluirPendente(email) {
+  if (!confirm(`Excluir o cadastro pendente de ${email}?`)) return;
+  await supabase.from("pending_users").delete().eq("email", email);
+  await loadAlunos();
 }
 
 async function toggleBlock(btn) {
