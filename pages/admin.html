@@ -67,6 +67,34 @@
       </div>
     </section>
 
+    <!-- Cadastrar novo aluno -->
+    <section class="section-card">
+      <h2 class="section-title">Cadastrar Aluno</h2>
+
+      <form id="novoAlunoForm" class="admin-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nome completo</label>
+            <input type="text" id="alunoNome" placeholder="Nome do aluno" required />
+          </div>
+
+          <div class="form-group">
+            <label>E-mail</label>
+            <input type="email" id="alunoEmail" placeholder="email@aluno.com" required />
+          </div>
+
+          <div class="form-group">
+            <label>Senha inicial</label>
+            <input type="password" id="alunoSenha" placeholder="Mínimo 6 caracteres" required minlength="6" />
+          </div>
+        </div>
+
+        <div id="alunoFormError" class="error-msg hidden"></div>
+        <div id="alunoFormSuccess" class="success-msg hidden"></div>
+        <button type="submit" class="btn-primary" id="cadastrarAlunoBtn">Cadastrar Aluno</button>
+      </form>
+    </section>
+
     <!-- Gerenciar alunos -->
     <section class="section-card">
       <h2 class="section-title">Gerenciar Alunos</h2>

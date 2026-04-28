@@ -1,11 +1,17 @@
 import { auth, db } from "./firebase.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  onAuthStateChanged, signOut,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   doc, getDoc, setDoc, collection, getDocs, addDoc, deleteDoc,
   query, where, updateDoc,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const DIAS_ORDER = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+
+let adminEmail = "";
+let adminPassword = "";
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) { window.location.href = "../index.html"; return; }
@@ -15,11 +21,13 @@ onAuthStateChanged(auth, async (user) => {
     window.location.href = "../index.html"; return;
   }
 
+  adminEmail = user.email;
   await loadAdminAulas();
   await loadAlunos();
 });
 
 document.getElementById("logoutBtn").addEventListener("click", async () => {
+  adminPassword = "";
   await signOut(auth);
   window.location.href = "../index.html";
 });
@@ -211,4 +219,72 @@ async function toggleBlock(btn) {
 
   await updateDoc(doc(db, "users", uid), { bloqueado: novoEstado });
   await loadAlunos();
+}
+
+// ===== CADASTRAR NOVO ALUNO =====
+document.getElementById("novoAlunoForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorDiv = document.getElementById("alunoFormError");
+  const successDiv = document.getElementById("alunoFormSuccess");
+  const btn = document.getElementById("cadastrarAlunoBtn");
+  errorDiv.classList.add("hidden");
+  successDiv.classList.add("hidden");
+
+  const nome = document.getElementById("alunoNome").value.trim();
+  const email = document.getElementById("alunoEmail").value.trim();
+  const senha = document.getElementById("alunoSenha").value;
+
+  btn.disabled = true;
+  btn.textContent = "Cadastrando...";
+
+  try {
+    // Pede a senha do admin para reautenticar depois
+    if (!adminPassword) {
+      adminPassword = prompt("Para cadastrar um aluno, confirme sua senha de administrador:");
+      if (!adminPassword) {
+        btn.disabled = false;
+        btn.textContent = "Cadastrar Aluno";
+        return;
+      }
+    }
+
+    // Cria o aluno no Firebase Auth
+    const cred = await createUserWithEmailAndPassword(auth, email, senha);
+    const alunoUid = cred.user.uid;
+
+    // Salva no Firestore
+    await setDoc(doc(db, "users", alunoUid), {
+      nome,
+      email,
+      role: "aluno",
+      bloqueado: false,
+      criadoEm: new Date(),
+    });
+
+    // Reautentica o admin (Firebase deslogou ao criar o aluno)
+    await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+
+    e.target.reset();
+    successDiv.textContent = `Aluno "${nome}" cadastrado com sucesso!`;
+    successDiv.classList.remove("hidden");
+    await loadAlunos();
+  } catch (err) {
+    adminPassword = "";
+    errorDiv.textContent = friendlyAlunoError(err.code);
+    errorDiv.classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Cadastrar Aluno";
+  }
+});
+
+function friendlyAlunoError(code) {
+  const msgs = {
+    "auth/email-already-in-use": "Este e-mail já está cadastrado.",
+    "auth/invalid-email": "E-mail inválido.",
+    "auth/weak-password": "Senha fraca. Use pelo menos 6 caracteres.",
+    "auth/wrong-password": "Senha do administrador incorreta.",
+    "auth/network-request-failed": "Sem conexão. Verifique sua internet.",
+  };
+  return msgs[code] || "Erro ao cadastrar aluno. Tente novamente.";
 }
