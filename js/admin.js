@@ -18,13 +18,24 @@ supabase.auth.getSession().then(async ({ data: { session } }) => {
 });
 
 // ===== ABAS =====
+function activateTab(tabName) {
+  document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+  document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+  const btn = document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+  const content = document.getElementById(`tab-${tabName}`);
+  if (btn) btn.classList.add("active");
+  if (content) content.classList.add("active");
+  window.location.hash = tabName;
+}
+
+// Restaura aba da URL ao carregar
+const hashTab = window.location.hash.replace("#", "");
+if (hashTab && document.getElementById(`tab-${hashTab}`)) {
+  activateTab(hashTab);
+}
+
 document.querySelectorAll(".tab-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-    document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById(`tab-${btn.dataset.tab}`).classList.add("active");
-  });
+  btn.addEventListener("click", () => activateTab(btn.dataset.tab));
 });
 
 // ===== LOGOUT =====
