@@ -1,0 +1,529 @@
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --black: #0a0a0a;
+  --black-card: #141414;
+  --black-input: #1e1e1e;
+  --black-border: #2a2a2a;
+  --white: #ffffff;
+  --white-dim: #cccccc;
+  --white-muted: #888888;
+  --accent: #e8341c;
+  --accent-hover: #c5280f;
+  --accent-dim: rgba(232, 52, 28, 0.15);
+  --success: #22c55e;
+  --success-dim: rgba(34, 197, 94, 0.12);
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --danger-dim: rgba(239, 68, 68, 0.12);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.5);
+}
+
+html, body { height: 100%; }
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background-color: var(--black);
+  color: var(--white);
+  line-height: 1.5;
+}
+
+/* ===== AUTH PAGE (LOGIN) ===== */
+.auth-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+.auth-container {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+.auth-logo img {
+  width: 180px;
+  height: auto;
+}
+
+.auth-form {
+  width: 100%;
+  background: var(--black-card);
+  border: 1px solid var(--black-border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.auth-form h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+
+.auth-footer {
+  color: var(--white-muted);
+  font-size: 0.8rem;
+}
+
+/* ===== FORM ELEMENTS ===== */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.form-group label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--white-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.form-group input,
+.form-group select {
+  background: var(--black-input);
+  border: 1px solid var(--black-border);
+  border-radius: var(--radius-sm);
+  color: var(--white);
+  padding: 0.7rem 0.9rem;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.form-group input::placeholder {
+  color: var(--white-muted);
+}
+
+.form-group select option {
+  background: var(--black-card);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+/* ===== BUTTONS ===== */
+.btn-primary {
+  background: var(--accent);
+  color: var(--white);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  width: 100%;
+}
+
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--white-dim);
+  border: 1px solid var(--black-border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn-secondary:hover { border-color: var(--white-dim); color: var(--white); }
+
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-danger:hover { background: var(--danger-dim); }
+
+.btn-success {
+  background: transparent;
+  color: var(--success);
+  border: 1px solid var(--success);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-success:hover { background: var(--success-dim); }
+
+.btn-logout {
+  background: transparent;
+  color: var(--white-muted);
+  border: 1px solid var(--black-border);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.btn-logout:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ===== APP LAYOUT ===== */
+.app-page { display: flex; flex-direction: column; min-height: 100vh; }
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: var(--black-card);
+  border-bottom: 1px solid var(--black-border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-logo { height: 36px; width: auto; }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-name {
+  font-size: 0.85rem;
+  color: var(--white-dim);
+  font-weight: 600;
+}
+
+.badge-admin {
+  background: var(--accent);
+  color: var(--white);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+}
+
+.app-main {
+  flex: 1;
+  padding: 1.5rem;
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ===== SECTION CARD ===== */
+.section-card {
+  background: var(--black-card);
+  border: 1px solid var(--black-border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--white);
+}
+
+.section-subtitle {
+  font-size: 0.85rem;
+  color: var(--white-muted);
+  margin-top: -0.5rem;
+}
+
+/* ===== AULAS GRID (aluno) ===== */
+.aulas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.aula-card {
+  background: var(--black-input);
+  border: 1px solid var(--black-border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: border-color 0.2s;
+}
+
+.aula-card:hover { border-color: #3a3a3a; }
+
+.aula-card.inscrito { border-color: var(--success); background: var(--success-dim); }
+.aula-card.lotada { opacity: 0.5; }
+
+.aula-dia {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.aula-horario {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.aula-desc {
+  font-size: 0.82rem;
+  color: var(--white-dim);
+}
+
+.aula-vagas {
+  font-size: 0.78rem;
+  color: var(--white-muted);
+}
+
+.aula-vagas.lotada { color: var(--danger); }
+
+.aula-actions { margin-top: 0.25rem; }
+
+/* ===== AULAS LIST INSCRITO ===== */
+.aulas-list-inscrito {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.inscrito-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--black-input);
+  border: 1px solid var(--black-border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+}
+
+.inscrito-info { display: flex; flex-direction: column; gap: 0.15rem; }
+.inscrito-dia { font-size: 0.72rem; color: var(--accent); font-weight: 700; text-transform: uppercase; }
+.inscrito-horario { font-size: 1rem; font-weight: 700; }
+.inscrito-desc { font-size: 0.8rem; color: var(--white-muted); }
+
+/* ===== ADMIN — aulas list ===== */
+.aulas-admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.aula-admin-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--black-input);
+  border: 1px solid var(--black-border);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1rem;
+  gap: 1rem;
+}
+
+.aula-admin-info { flex: 1; display: flex; flex-direction: column; gap: 0.15rem; }
+.aula-admin-dia { font-size: 0.72rem; color: var(--accent); font-weight: 700; text-transform: uppercase; }
+.aula-admin-horario { font-size: 1rem; font-weight: 700; }
+.aula-admin-desc { font-size: 0.8rem; color: var(--white-muted); }
+.aula-admin-vagas { font-size: 0.82rem; color: var(--white-dim); }
+
+.aula-admin-actions { display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; }
+
+/* ===== ADMIN — alunos list ===== */
+.alunos-admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.aluno-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--black-input);
+  border: 1px solid var(--black-border);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1rem;
+  gap: 1rem;
+}
+
+.aluno-item.bloqueado { border-color: var(--danger); background: var(--danger-dim); }
+
+.aluno-info { flex: 1; display: flex; flex-direction: column; gap: 0.15rem; }
+.aluno-nome { font-size: 0.95rem; font-weight: 600; }
+.aluno-email { font-size: 0.78rem; color: var(--white-muted); }
+.aluno-status-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+.aluno-status-badge.ativo { background: var(--success-dim); color: var(--success); }
+.aluno-status-badge.bloqueado { background: var(--danger-dim); color: var(--danger); }
+
+.aluno-actions { display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; }
+
+/* ===== ADMIN FORM ===== */
+.admin-form { display: flex; flex-direction: column; gap: 1rem; }
+
+/* ===== MODAL ===== */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 1.5rem;
+}
+
+.modal-content {
+  background: var(--black-card);
+  border: 1px solid var(--black-border);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 480px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--black-border);
+}
+
+.modal-header h3 { font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--white-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.2s;
+}
+.modal-close:hover { color: var(--white); }
+
+.modal-body {
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.modal-aluno-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--black-border);
+}
+.modal-aluno-item:last-child { border-bottom: none; }
+
+/* ===== BLOCKED BANNER ===== */
+.blocked-banner {
+  background: var(--danger-dim);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  padding: 0.85rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ===== FEEDBACK ===== */
+.error-msg {
+  background: var(--danger-dim);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+}
+
+.success-msg {
+  background: var(--success-dim);
+  border: 1px solid var(--success);
+  border-radius: var(--radius-sm);
+  color: var(--success);
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+}
+
+.loading-text {
+  color: var(--white-muted);
+  font-size: 0.88rem;
+  padding: 0.5rem 0;
+}
+
+.empty-text {
+  color: var(--white-muted);
+  font-size: 0.88rem;
+  padding: 0.5rem 0;
+}
+
+/* ===== UTILITIES ===== */
+.hidden { display: none !important; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 600px) {
+  .app-main { padding: 1rem; }
+  .aulas-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  .aula-admin-item, .aluno-item { flex-direction: column; align-items: flex-start; }
+  .aula-admin-actions, .aluno-actions { width: 100%; }
+}

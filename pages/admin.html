@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rina Training Club — Admin</title>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body class="app-page">
+
+  <header class="app-header">
+    <img src="../logo/logo.png" alt="Rina Training Club" class="header-logo" />
+    <div class="header-right">
+      <span class="badge-admin">Líder</span>
+      <button class="btn-logout" id="logoutBtn">Sair</button>
+    </div>
+  </header>
+
+  <main class="app-main">
+
+    <!-- Criar nova aula -->
+    <section class="section-card">
+      <h2 class="section-title">Nova Aula</h2>
+
+      <form id="novaAulaForm" class="admin-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Dia da semana</label>
+            <select id="diaSemana" required>
+              <option value="">Selecione...</option>
+              <option value="Segunda">Segunda-feira</option>
+              <option value="Terça">Terça-feira</option>
+              <option value="Quarta">Quarta-feira</option>
+              <option value="Quinta">Quinta-feira</option>
+              <option value="Sexta">Sexta-feira</option>
+              <option value="Sábado">Sábado</option>
+              <option value="Domingo">Domingo</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Horário</label>
+            <input type="time" id="horario" required />
+          </div>
+
+          <div class="form-group">
+            <label>Vagas</label>
+            <input type="number" id="vagas" min="1" max="100" placeholder="Ex: 15" required />
+          </div>
+
+          <div class="form-group">
+            <label>Descrição (opcional)</label>
+            <input type="text" id="descricao" placeholder="Ex: Funcional, Musculação..." />
+          </div>
+        </div>
+
+        <div id="aulaFormError" class="error-msg hidden"></div>
+        <button type="submit" class="btn-primary">Criar Aula</button>
+      </form>
+    </section>
+
+    <!-- Aulas cadastradas -->
+    <section class="section-card">
+      <h2 class="section-title">Aulas Cadastradas</h2>
+      <div id="adminAulasList" class="aulas-admin-list">
+        <p class="loading-text">Carregando aulas...</p>
+      </div>
+    </section>
+
+    <!-- Gerenciar alunos -->
+    <section class="section-card">
+      <h2 class="section-title">Gerenciar Alunos</h2>
+      <div id="alunosList" class="alunos-admin-list">
+        <p class="loading-text">Carregando alunos...</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal: inscritos na aula -->
+  <div id="inscritosModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalAulaTitulo">Inscritos</h3>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+      <div id="modalInscritosList" class="modal-body">
+        <p class="loading-text">Carregando...</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="../js/firebase.js"></script>
+  <script type="module" src="../js/admin.js"></script>
+</body>
+</html>

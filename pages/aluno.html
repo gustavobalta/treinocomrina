@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rina Training Club — Minhas Aulas</title>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body class="app-page">
+
+  <header class="app-header">
+    <img src="../logo/logo.png" alt="Rina Training Club" class="header-logo" />
+    <div class="header-right">
+      <span id="userNameDisplay" class="user-name"></span>
+      <button class="btn-logout" id="logoutBtn">Sair</button>
+    </div>
+  </header>
+
+  <main class="app-main">
+
+    <div id="blockedBanner" class="blocked-banner hidden">
+      Sua conta está bloqueada. Entre em contato com o líder para regularizar seu pagamento.
+    </div>
+
+    <section class="section-card">
+      <h2 class="section-title">Aulas Disponíveis</h2>
+      <p class="section-subtitle">Selecione os treinos que deseja participar esta semana.</p>
+
+      <div id="aulasList" class="aulas-grid">
+        <p class="loading-text">Carregando aulas...</p>
+      </div>
+    </section>
+
+    <section class="section-card">
+      <h2 class="section-title">Minhas Inscrições</h2>
+      <div id="minhasAulas" class="aulas-list-inscrito">
+        <p class="loading-text">Carregando...</p>
+      </div>
+    </section>
+
+  </main>
+
+  <script type="module" src="../js/firebase.js"></script>
+  <script type="module" src="../js/aluno.js"></script>
+</body>
+</html>
