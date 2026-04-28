@@ -78,6 +78,13 @@ body {
   font-size: 0.8rem;
 }
 
+.auth-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.auth-link:hover { text-decoration: underline; }
+
 /* ===== FORM ELEMENTS ===== */
 .form-group {
   display: flex;

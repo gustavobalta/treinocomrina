@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rina Training Club — Criar conta</title>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body class="auth-page">
+
+  <div class="auth-container">
+    <div class="auth-logo">
+      <img src="../logo/logo.png" alt="Rina Training Club" />
+    </div>
+
+    <form class="auth-form" id="cadastroForm">
+      <h2>Criar conta</h2>
+
+      <div class="form-group">
+        <label for="nome">Nome completo</label>
+        <input type="text" id="nome" placeholder="Seu nome" required />
+      </div>
+
+      <div class="form-group">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" placeholder="seu@email.com" required />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Senha</label>
+        <input type="password" id="password" placeholder="Mínimo 6 caracteres" required minlength="6" />
+      </div>
+
+      <div class="form-group">
+        <label for="confirmPassword">Confirmar senha</label>
+        <input type="password" id="confirmPassword" placeholder="Repita a senha" required minlength="6" />
+      </div>
+
+      <div id="cadastroError" class="error-msg hidden"></div>
+
+      <button type="submit" class="btn-primary" id="cadastroBtn">Criar conta</button>
+
+      <p style="text-align:center; font-size:0.85rem; color: var(--white-muted)">
+        Já tem conta? <a href="../index.html" class="auth-link">Entrar</a>
+      </p>
+    </form>
+
+    <p class="auth-footer">Rina Training Club &copy; 2025</p>
+  </div>
+
+  <script type="module" src="../js/firebase.js"></script>
+  <script type="module" src="../js/cadastro.js"></script>
+</body>
+</html>
