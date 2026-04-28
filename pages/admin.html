@@ -188,6 +188,112 @@
 
   </main>
 
+  <!-- Modal: editar aluno -->
+  <div id="editAlunoModal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>Editar Aluno</h3>
+        <button class="modal-close" id="editAlunoClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="editAlunoForm" class="admin-form">
+          <input type="hidden" id="editAlunoUid" />
+
+          <!-- Foto -->
+          <div class="form-section-label">Foto</div>
+          <div class="avatar-upload-wrap">
+            <div class="avatar-preview" id="editAvatarPreview">
+              <span id="editAvatarInitial">?</span>
+              <img id="editAvatarPreviewImg" class="hidden" alt="Foto do aluno" />
+            </div>
+            <div class="avatar-upload-info">
+              <label for="editAlunoFoto" class="btn-secondary" style="cursor:pointer; display:inline-block;">
+                Trocar foto
+              </label>
+              <input type="file" id="editAlunoFoto" accept="image/*" class="hidden" />
+            </div>
+          </div>
+
+          <div class="form-section-label">Dados pessoais</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nome completo *</label>
+              <input type="text" id="editNome" required />
+            </div>
+            <div class="form-group">
+              <label>E-mail</label>
+              <input type="email" id="editEmail" disabled style="opacity:0.5" />
+            </div>
+            <div class="form-group">
+              <label>Data de nascimento</label>
+              <input type="date" id="editNascimento" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>CPF</label>
+              <input type="text" id="editCpf" maxlength="14" />
+            </div>
+            <div class="form-group">
+              <label>RG</label>
+              <input type="text" id="editRg" maxlength="12" />
+            </div>
+            <div class="form-group">
+              <label>Telefone</label>
+              <input type="tel" id="editTelefone" maxlength="15" />
+            </div>
+          </div>
+
+          <div class="form-section-label">Endereço</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Rua / Avenida</label>
+              <input type="text" id="editRua" />
+            </div>
+            <div class="form-group">
+              <label>Número</label>
+              <input type="text" id="editNumero" />
+            </div>
+            <div class="form-group">
+              <label>Bairro</label>
+              <input type="text" id="editBairro" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Cidade</label>
+              <input type="text" id="editCidade" />
+            </div>
+            <div class="form-group">
+              <label>Estado</label>
+              <input type="text" id="editEstado" maxlength="2" />
+            </div>
+            <div class="form-group">
+              <label>CEP</label>
+              <input type="text" id="editCep" maxlength="9" />
+            </div>
+          </div>
+
+          <div class="form-section-label">Dados do plano</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Data de início</label>
+              <input type="date" id="editInicio" />
+            </div>
+            <div class="form-group">
+              <label>Observações</label>
+              <input type="text" id="editObs" />
+            </div>
+          </div>
+
+          <div id="editAlunoError" class="error-msg hidden"></div>
+          <div id="editAlunoSuccess" class="success-msg hidden"></div>
+          <button type="submit" class="btn-primary" id="editAlunoBtn">Salvar alterações</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: editar aula -->
   <div id="editAulaModal" class="modal hidden">
     <div class="modal-content">

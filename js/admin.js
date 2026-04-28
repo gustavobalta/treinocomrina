@@ -363,6 +363,9 @@ async function loadAlunos() {
         <button class="btn-secondary" data-action="ver-aluno" data-uid="${aluno.id}">
           Detalhes
         </button>
+        <button class="btn-secondary" data-action="editar-aluno" data-uid="${aluno.id}">
+          Editar
+        </button>
         <button
           class="${bloqueado ? "btn-success" : "btn-danger"}"
           data-action="toggle-block"
@@ -381,6 +384,9 @@ async function loadAlunos() {
   });
   container.querySelectorAll("[data-action='ver-aluno']").forEach((btn) => {
     btn.addEventListener("click", () => openAlunoModal(btn.dataset.uid));
+  });
+  container.querySelectorAll("[data-action='editar-aluno']").forEach((btn) => {
+    btn.addEventListener("click", () => openEditAlunoModal(btn.dataset.uid));
   });
 }
 
@@ -428,6 +434,121 @@ async function openAlunoModal(uid) {
     </div>
   `;
 }
+
+// ===== MODAL EDITAR ALUNO =====
+const editAlunoModal = document.getElementById("editAlunoModal");
+document.getElementById("editAlunoClose").addEventListener("click", () => editAlunoModal.classList.add("hidden"));
+editAlunoModal.addEventListener("click", (e) => { if (e.target === editAlunoModal) editAlunoModal.classList.add("hidden"); });
+
+document.getElementById("editAlunoFoto").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    document.getElementById("editAvatarInitial").classList.add("hidden");
+    const img = document.getElementById("editAvatarPreviewImg");
+    img.src = ev.target.result;
+    img.classList.remove("hidden");
+  };
+  reader.readAsDataURL(file);
+});
+
+async function openEditAlunoModal(uid) {
+  const snap = await getDoc(doc(db, "users", uid));
+  if (!snap.exists()) return;
+  const a = snap.data();
+  const end = a.endereco || {};
+
+  document.getElementById("editAlunoUid").value = uid;
+  document.getElementById("editNome").value = a.nome || "";
+  document.getElementById("editEmail").value = a.email || "";
+  document.getElementById("editNascimento").value = a.nascimento || "";
+  document.getElementById("editCpf").value = a.cpf || "";
+  document.getElementById("editRg").value = a.rg || "";
+  document.getElementById("editTelefone").value = a.telefone || "";
+  document.getElementById("editRua").value = end.rua || "";
+  document.getElementById("editNumero").value = end.numero || "";
+  document.getElementById("editBairro").value = end.bairro || "";
+  document.getElementById("editCidade").value = end.cidade || "";
+  document.getElementById("editEstado").value = end.estado || "";
+  document.getElementById("editCep").value = end.cep || "";
+  document.getElementById("editInicio").value = a.inicio || "";
+  document.getElementById("editObs").value = a.obs || "";
+  document.getElementById("editAlunoFoto").value = "";
+  document.getElementById("editAlunoError").classList.add("hidden");
+  document.getElementById("editAlunoSuccess").classList.add("hidden");
+
+  // Avatar preview
+  if (a.fotoUrl) {
+    document.getElementById("editAvatarInitial").classList.add("hidden");
+    const img = document.getElementById("editAvatarPreviewImg");
+    img.src = a.fotoUrl;
+    img.classList.remove("hidden");
+  } else {
+    document.getElementById("editAvatarPreviewImg").classList.add("hidden");
+    const initial = document.getElementById("editAvatarInitial");
+    initial.textContent = (a.nome || "?")[0].toUpperCase();
+    initial.classList.remove("hidden");
+  }
+
+  editAlunoModal.classList.remove("hidden");
+}
+
+document.getElementById("editAlunoForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorDiv = document.getElementById("editAlunoError");
+  const successDiv = document.getElementById("editAlunoSuccess");
+  const btn = document.getElementById("editAlunoBtn");
+  errorDiv.classList.add("hidden");
+  successDiv.classList.add("hidden");
+  btn.disabled = true;
+  btn.textContent = "Salvando...";
+
+  const uid = document.getElementById("editAlunoUid").value;
+  const fotoFile = document.getElementById("editAlunoFoto").files[0];
+
+  try {
+    let fotoUrl;
+    if (fotoFile) {
+      btn.textContent = "Enviando foto...";
+      const storageRef = ref(storage, `fotos/${uid}`);
+      await uploadBytes(storageRef, fotoFile);
+      fotoUrl = await getDownloadURL(storageRef);
+    }
+
+    const dados = {
+      nome: document.getElementById("editNome").value.trim(),
+      nascimento: document.getElementById("editNascimento").value,
+      cpf: document.getElementById("editCpf").value.trim(),
+      rg: document.getElementById("editRg").value.trim(),
+      telefone: document.getElementById("editTelefone").value.trim(),
+      endereco: {
+        rua: document.getElementById("editRua").value.trim(),
+        numero: document.getElementById("editNumero").value.trim(),
+        bairro: document.getElementById("editBairro").value.trim(),
+        cidade: document.getElementById("editCidade").value.trim(),
+        estado: document.getElementById("editEstado").value.trim(),
+        cep: document.getElementById("editCep").value.trim(),
+      },
+      inicio: document.getElementById("editInicio").value,
+      obs: document.getElementById("editObs").value.trim(),
+    };
+
+    if (fotoUrl) dados.fotoUrl = fotoUrl;
+
+    await updateDoc(doc(db, "users", uid), dados);
+
+    successDiv.textContent = "Dados salvos com sucesso!";
+    successDiv.classList.remove("hidden");
+    await loadAlunos();
+  } catch (err) {
+    errorDiv.textContent = "Erro ao salvar. Tente novamente.";
+    errorDiv.classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Salvar alterações";
+  }
+});
 
 // ===== HELPERS =====
 function avatarHtml(user, sizeClass) {
