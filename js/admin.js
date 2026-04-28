@@ -1,28 +1,18 @@
-import { auth, db, storage } from "./firebase.js";
-import {
-  onAuthStateChanged, signOut,
-  createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {
-  doc, getDoc, setDoc, collection, getDocs, addDoc, deleteDoc,
-  query, where, updateDoc,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import {
-  ref, uploadBytes, getDownloadURL,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+import { supabase } from "./supabase.js";
 
 const DIAS_ORDER = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 
-let adminEmail = "";
-let adminPassword = "";
+let currentUser = null;
 
-onAuthStateChanged(auth, async (user) => {
-  if (!user) { window.location.href = "../index.html"; return; }
-  const snap = await getDoc(doc(db, "users", user.uid));
-  if (!snap.exists() || snap.data().role !== "admin") {
-    window.location.href = "../index.html"; return;
-  }
-  adminEmail = user.email;
+// ===== INIT =====
+supabase.auth.getSession().then(async ({ data: { session } }) => {
+  if (!session) { window.location.href = "../index.html"; return; }
+
+  currentUser = session.user;
+
+  const { data } = await supabase.from("users").select("role").eq("id", currentUser.id).single();
+  if (!data || data.role !== "admin") { window.location.href = "../index.html"; return; }
+
   await loadAdminAulas();
   await loadAlunos();
 });
@@ -39,24 +29,17 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
 
 // ===== LOGOUT =====
 document.getElementById("logoutBtn").addEventListener("click", async () => {
-  adminPassword = "";
-  await signOut(auth);
+  await supabase.auth.signOut();
   window.location.href = "../index.html";
 });
 
 // ===== MODAL CADASTRO ALUNO =====
 const cadastroAlunoModal = document.getElementById("cadastroAlunoModal");
-document.getElementById("abrirCadastroAlunoBtn").addEventListener("click", () => {
-  cadastroAlunoModal.classList.remove("hidden");
-});
-document.getElementById("cadastroAlunoClose").addEventListener("click", () => {
-  cadastroAlunoModal.classList.add("hidden");
-});
-cadastroAlunoModal.addEventListener("click", (e) => {
-  if (e.target === cadastroAlunoModal) cadastroAlunoModal.classList.add("hidden");
-});
+document.getElementById("abrirCadastroAlunoBtn").addEventListener("click", () => cadastroAlunoModal.classList.remove("hidden"));
+document.getElementById("cadastroAlunoClose").addEventListener("click", () => cadastroAlunoModal.classList.add("hidden"));
+cadastroAlunoModal.addEventListener("click", (e) => { if (e.target === cadastroAlunoModal) cadastroAlunoModal.classList.add("hidden"); });
 
-// ===== PREVIEW FOTO NO CADASTRO =====
+// ===== PREVIEW FOTO CADASTRO =====
 document.getElementById("alunoFoto").addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -71,8 +54,7 @@ document.getElementById("alunoFoto").addEventListener("change", (e) => {
 });
 
 document.getElementById("alunoNome").addEventListener("input", (e) => {
-  const initial = e.target.value.trim()[0] || "?";
-  document.getElementById("avatarInitial").textContent = initial.toUpperCase();
+  document.getElementById("avatarInitial").textContent = (e.target.value.trim()[0] || "?").toUpperCase();
 });
 
 // ===== CRIAR AULA =====
@@ -86,13 +68,13 @@ document.getElementById("novaAulaForm").addEventListener("submit", async (e) => 
   const vagas = parseInt(document.getElementById("vagas").value);
   const descricao = document.getElementById("descricao").value.trim();
 
-  if (!dia || !horario || !vagas) {
-    errorDiv.textContent = "Preencha todos os campos obrigatórios.";
+  const { error } = await supabase.from("aulas").insert({ dia, horario, vagas, descricao });
+  if (error) {
+    errorDiv.textContent = "Erro ao criar aula.";
     errorDiv.classList.remove("hidden");
     return;
   }
 
-  await addDoc(collection(db, "aulas"), { dia, horario, vagas, descricao, criadoEm: new Date() });
   e.target.reset();
   await loadAdminAulas();
 });
@@ -101,31 +83,27 @@ document.getElementById("novaAulaForm").addEventListener("submit", async (e) => 
 async function loadAdminAulas() {
   const container = document.getElementById("adminAulasList");
 
-  const snap = await getDocs(collection(db, "aulas"));
-  const allInscricoes = await getDocs(collection(db, "inscricoes"));
+  const { data: aulas } = await supabase.from("aulas").select("*");
+  const { data: inscricoes } = await supabase.from("inscricoes").select("aula_id");
 
   const countMap = {};
-  allInscricoes.docs.forEach((d) => {
-    const aid = d.data().aulaId;
-    countMap[aid] = (countMap[aid] || 0) + 1;
+  (inscricoes || []).forEach((i) => {
+    countMap[i.aula_id] = (countMap[i.aula_id] || 0) + 1;
   });
 
-  const aulas = snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
-    .sort((a, b) => {
-      const di = DIAS_ORDER.indexOf(a.dia) - DIAS_ORDER.indexOf(b.dia);
-      if (di !== 0) return di;
-      return a.horario.localeCompare(b.horario);
-    });
-
-  if (aulas.length === 0) {
+  if (!aulas || aulas.length === 0) {
     container.innerHTML = '<p class="empty-text">Nenhuma aula cadastrada.</p>';
     return;
   }
 
-  // Agrupa por dia
+  const sorted = [...aulas].sort((a, b) => {
+    const di = DIAS_ORDER.indexOf(a.dia) - DIAS_ORDER.indexOf(b.dia);
+    if (di !== 0) return di;
+    return a.horario.localeCompare(b.horario);
+  });
+
   const porDia = {};
-  aulas.forEach((aula) => {
+  sorted.forEach((aula) => {
     if (!porDia[aula.dia]) porDia[aula.dia] = [];
     porDia[aula.dia].push(aula);
   });
@@ -147,15 +125,9 @@ async function loadAdminAulas() {
           <div class="aula-admin-vagas">${total}/${aula.vagas} inscritos</div>
         </div>
         <div class="aula-admin-actions">
-          <button class="btn-secondary" data-action="ver-inscritos" data-aula="${aula.id}" data-label="${aula.dia} ${aula.horario}">
-            Ver inscritos
-          </button>
-          <button class="btn-secondary" data-action="editar-aula" data-aula="${aula.id}">
-            Editar
-          </button>
-          <button class="btn-danger" data-action="excluir-aula" data-aula="${aula.id}">
-            Excluir
-          </button>
+          <button class="btn-secondary" data-action="ver-inscritos" data-aula="${aula.id}" data-label="${aula.dia} ${aula.horario}">Ver inscritos</button>
+          <button class="btn-secondary" data-action="editar-aula" data-aula="${aula.id}">Editar</button>
+          <button class="btn-danger" data-action="excluir-aula" data-aula="${aula.id}">Excluir</button>
         </div>
       `;
       grupo.appendChild(item);
@@ -177,10 +149,8 @@ async function loadAdminAulas() {
 
 async function excluirAula(aulaId) {
   if (!confirm("Excluir esta aula? Todas as inscrições serão removidas.")) return;
-  await deleteDoc(doc(db, "aulas", aulaId));
-  const q = query(collection(db, "inscricoes"), where("aulaId", "==", aulaId));
-  const snap = await getDocs(q);
-  for (const d of snap.docs) await deleteDoc(d.ref);
+  await supabase.from("inscricoes").delete().eq("aula_id", aulaId);
+  await supabase.from("aulas").delete().eq("id", aulaId);
   await loadAdminAulas();
 }
 
@@ -190,9 +160,8 @@ document.getElementById("editAulaClose").addEventListener("click", () => editAul
 editAulaModal.addEventListener("click", (e) => { if (e.target === editAulaModal) editAulaModal.classList.add("hidden"); });
 
 async function openEditAulaModal(aulaId) {
-  const snap = await getDoc(doc(db, "aulas", aulaId));
-  if (!snap.exists()) return;
-  const aula = snap.data();
+  const { data: aula } = await supabase.from("aulas").select("*").eq("id", aulaId).single();
+  if (!aula) return;
 
   document.getElementById("editAulaId").value = aulaId;
   document.getElementById("editDiaSemana").value = aula.dia;
@@ -200,7 +169,6 @@ async function openEditAulaModal(aulaId) {
   document.getElementById("editVagas").value = aula.vagas;
   document.getElementById("editDescricao").value = aula.descricao || "";
   document.getElementById("editAulaError").classList.add("hidden");
-
   editAulaModal.classList.remove("hidden");
 }
 
@@ -210,19 +178,21 @@ document.getElementById("editAulaForm").addEventListener("submit", async (e) => 
   errorDiv.classList.add("hidden");
 
   const aulaId = document.getElementById("editAulaId").value;
-  const dia = document.getElementById("editDiaSemana").value;
-  const horario = document.getElementById("editHorario").value;
-  const vagas = parseInt(document.getElementById("editVagas").value);
-  const descricao = document.getElementById("editDescricao").value.trim();
+  const { error } = await supabase.from("aulas").update({
+    dia: document.getElementById("editDiaSemana").value,
+    horario: document.getElementById("editHorario").value,
+    vagas: parseInt(document.getElementById("editVagas").value),
+    descricao: document.getElementById("editDescricao").value.trim(),
+  }).eq("id", aulaId);
 
-  try {
-    await updateDoc(doc(db, "aulas", aulaId), { dia, horario, vagas, descricao });
-    editAulaModal.classList.add("hidden");
-    await loadAdminAulas();
-  } catch (err) {
-    errorDiv.textContent = "Erro ao salvar. Tente novamente.";
+  if (error) {
+    errorDiv.textContent = "Erro ao salvar.";
     errorDiv.classList.remove("hidden");
+    return;
   }
+
+  editAulaModal.classList.add("hidden");
+  await loadAdminAulas();
 });
 
 // ===== MODAL INSCRITOS =====
@@ -236,41 +206,34 @@ async function openInscritosModal(aulaId, label) {
   bodyDiv.innerHTML = '<p class="loading-text">Carregando...</p>';
   inscritosModal.classList.remove("hidden");
 
-  const q = query(collection(db, "inscricoes"), where("aulaId", "==", aulaId));
-  const snap = await getDocs(q);
+  const { data } = await supabase
+    .from("inscricoes")
+    .select("users(nome, foto_url)")
+    .eq("aula_id", aulaId);
 
-  if (snap.empty) {
+  if (!data || data.length === 0) {
     bodyDiv.innerHTML = '<p class="empty-text">Nenhum inscrito nesta aula.</p>';
     return;
   }
 
-  const users = await Promise.all(
-    snap.docs.map(async (d) => {
-      const uSnap = await getDoc(doc(db, "users", d.data().userId));
-      return uSnap.exists() ? uSnap.data() : null;
-    })
-  );
-
   bodyDiv.innerHTML = "";
-  users.filter(Boolean).forEach((u) => {
+  data.forEach(({ users: u }) => {
+    if (!u) return;
     const item = document.createElement("div");
     item.className = "modal-aluno-item";
-    item.innerHTML = `
-      ${avatarHtml(u, "avatar-sm")}
-      <span>${u.nome || "—"}</span>
-    `;
+    item.innerHTML = `${avatarHtml(u, "avatar-sm")}<span>${u.nome || "—"}</span>`;
     bodyDiv.appendChild(item);
   });
 }
 
-// ===== CADASTRAR NOVO ALUNO =====
+// ===== CADASTRAR ALUNO =====
 document.getElementById("novoAlunoForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const errorDiv = document.getElementById("alunoFormError");
-  const successDiv = document.getElementById("alunoFormSuccess");
   const btn = document.getElementById("cadastrarAlunoBtn");
   errorDiv.classList.add("hidden");
-  successDiv.classList.add("hidden");
+  btn.disabled = true;
+  btn.textContent = "Cadastrando...";
 
   const nome = document.getElementById("alunoNome").value.trim();
   const email = document.getElementById("alunoEmail").value.trim();
@@ -288,55 +251,51 @@ document.getElementById("novoAlunoForm").addEventListener("submit", async (e) =>
   const obs = document.getElementById("alunoObs").value.trim();
   const fotoFile = document.getElementById("alunoFoto").files[0];
 
-  btn.disabled = true;
-  btn.textContent = "Cadastrando...";
-
   try {
-    if (!adminPassword) {
-      adminPassword = prompt("Confirme sua senha de administrador para continuar:");
-      if (!adminPassword) {
-        btn.disabled = false;
-        btn.textContent = "Cadastrar e Enviar E-mail";
-        return;
-      }
-    }
-
-    const senhaTemp = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10);
-    const cred = await createUserWithEmailAndPassword(auth, email, senhaTemp);
-    const alunoUid = cred.user.uid;
-
-    // Upload da foto se fornecida
-    let fotoUrl = "";
-    if (fotoFile) {
-      btn.textContent = "Enviando foto...";
-      const storageRef = ref(storage, `fotos/${alunoUid}`);
-      await uploadBytes(storageRef, fotoFile);
-      fotoUrl = await getDownloadURL(storageRef);
-    }
-
-    await setDoc(doc(db, "users", alunoUid), {
-      nome, email, nascimento, cpf, rg, telefone, fotoUrl,
-      endereco: { rua, numero, bairro, cidade, estado, cep },
-      inicio, obs,
-      role: "aluno",
-      bloqueado: false,
-      criadoEm: new Date(),
+    // Cria usuário via Supabase Admin (invite)
+    const senhaTemp = Math.random().toString(36).slice(-10) + "A1!";
+    const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
+      email,
+      password: senhaTemp,
+      email_confirm: true,
     });
 
+    if (authErr) throw authErr;
+    const uid = authData.user.id;
+
+    // Upload foto
+    let foto_url = "";
+    if (fotoFile) {
+      btn.textContent = "Enviando foto...";
+      const ext = fotoFile.name.split(".").pop();
+      const path = `fotos/${uid}.${ext}`;
+      await supabase.storage.from("fotos").upload(path, fotoFile, { upsert: true });
+      const { data: urlData } = supabase.storage.from("fotos").getPublicUrl(path);
+      foto_url = urlData.publicUrl;
+    }
+
+    // Salva perfil
+    await supabase.from("users").insert({
+      id: uid, nome, email, nascimento, cpf, rg, telefone, foto_url,
+      rua, numero, bairro, cidade, estado, cep, inicio, obs,
+      role: "aluno", bloqueado: false,
+    });
+
+    // Envia email de redefinição de senha
     btn.textContent = "Enviando e-mail...";
-    await sendPasswordResetEmail(auth, email);
-    await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: "https://gustavobalta.github.io/treinocomrina/pages/reset-password.html",
+    });
 
     e.target.reset();
     document.getElementById("avatarInitial").textContent = "?";
     document.getElementById("avatarInitial").classList.remove("hidden");
     document.getElementById("avatarPreviewImg").classList.add("hidden");
-
     cadastroAlunoModal.classList.add("hidden");
     await loadAlunos();
   } catch (err) {
-    if (err.code === "auth/wrong-password") adminPassword = "";
-    errorDiv.textContent = friendlyAlunoError(err.code);
+    console.error(err);
+    errorDiv.textContent = friendlyAlunoError(err.message);
     errorDiv.classList.remove("hidden");
   } finally {
     btn.disabled = false;
@@ -344,31 +303,23 @@ document.getElementById("novoAlunoForm").addEventListener("submit", async (e) =>
   }
 });
 
-function friendlyAlunoError(code) {
-  const msgs = {
-    "auth/email-already-in-use": "Este e-mail já está cadastrado.",
-    "auth/invalid-email": "E-mail inválido.",
-    "auth/weak-password": "Erro interno de senha temporária.",
-    "auth/wrong-password": "Senha do administrador incorreta. Tente novamente.",
-    "auth/network-request-failed": "Sem conexão. Verifique sua internet.",
-  };
-  return msgs[code] || "Erro ao cadastrar aluno. Tente novamente.";
+function friendlyAlunoError(msg) {
+  if (msg.includes("already registered")) return "Este e-mail já está cadastrado.";
+  if (msg.includes("invalid")) return "E-mail inválido.";
+  return `Erro ao cadastrar: ${msg}`;
 }
 
 // ===== CARREGAR ALUNOS =====
 async function loadAlunos() {
   const container = document.getElementById("alunosList");
 
-  const q = query(collection(db, "users"), where("role", "==", "aluno"));
-  const snap = await getDocs(q);
+  const { data: alunos } = await supabase
+    .from("users").select("*").eq("role", "aluno").order("nome");
 
-  if (snap.empty) {
+  if (!alunos || alunos.length === 0) {
     container.innerHTML = '<p class="empty-text">Nenhum aluno cadastrado.</p>';
     return;
   }
-
-  const alunos = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-    .sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
 
   container.innerHTML = "";
   alunos.forEach((aluno) => {
@@ -385,18 +336,10 @@ async function loadAlunos() {
         </span>
       </div>
       <div class="aluno-actions">
-        <button class="btn-secondary" data-action="ver-aluno" data-uid="${aluno.id}">
-          Detalhes
-        </button>
-        <button class="btn-secondary" data-action="editar-aluno" data-uid="${aluno.id}">
-          Editar
-        </button>
-        <button
-          class="${bloqueado ? "btn-success" : "btn-danger"}"
-          data-action="toggle-block"
-          data-uid="${aluno.id}"
-          data-bloqueado="${bloqueado}"
-        >
+        <button class="btn-secondary" data-action="ver-aluno" data-uid="${aluno.id}">Detalhes</button>
+        <button class="btn-secondary" data-action="editar-aluno" data-uid="${aluno.id}">Editar</button>
+        <button class="${bloqueado ? "btn-success" : "btn-danger"}" data-action="toggle-block"
+          data-uid="${aluno.id}" data-bloqueado="${bloqueado}">
           ${bloqueado ? "Desbloquear" : "Bloquear"}
         </button>
       </div>
@@ -404,25 +347,19 @@ async function loadAlunos() {
     container.appendChild(item);
   });
 
-  container.querySelectorAll("[data-action='toggle-block']").forEach((btn) => {
-    btn.addEventListener("click", () => toggleBlock(btn));
-  });
-  container.querySelectorAll("[data-action='ver-aluno']").forEach((btn) => {
-    btn.addEventListener("click", () => openAlunoModal(btn.dataset.uid));
-  });
-  container.querySelectorAll("[data-action='editar-aluno']").forEach((btn) => {
-    btn.addEventListener("click", () => openEditAlunoModal(btn.dataset.uid));
-  });
+  container.querySelectorAll("[data-action='toggle-block']").forEach((btn) => btn.addEventListener("click", () => toggleBlock(btn)));
+  container.querySelectorAll("[data-action='ver-aluno']").forEach((btn) => btn.addEventListener("click", () => openAlunoModal(btn.dataset.uid)));
+  container.querySelectorAll("[data-action='editar-aluno']").forEach((btn) => btn.addEventListener("click", () => openEditAlunoModal(btn.dataset.uid)));
 }
 
 async function toggleBlock(btn) {
   const uid = btn.dataset.uid;
   const atual = btn.dataset.bloqueado === "true";
-  await updateDoc(doc(db, "users", uid), { bloqueado: !atual });
+  await supabase.from("users").update({ bloqueado: !atual }).eq("id", uid);
   await loadAlunos();
 }
 
-// ===== MODAL DETALHES DO ALUNO =====
+// ===== MODAL DETALHES ALUNO =====
 const alunoModal = document.getElementById("alunoModal");
 document.getElementById("alunoModalClose").addEventListener("click", () => alunoModal.classList.add("hidden"));
 alunoModal.addEventListener("click", (e) => { if (e.target === alunoModal) alunoModal.classList.add("hidden"); });
@@ -433,15 +370,11 @@ async function openAlunoModal(uid) {
   body.innerHTML = '<p class="loading-text">Carregando...</p>';
   alunoModal.classList.remove("hidden");
 
-  const snap = await getDoc(doc(db, "users", uid));
-  if (!snap.exists()) { body.innerHTML = '<p class="empty-text">Aluno não encontrado.</p>'; return; }
+  const { data: a } = await supabase.from("users").select("*").eq("id", uid).single();
+  if (!a) { body.innerHTML = '<p class="empty-text">Aluno não encontrado.</p>'; return; }
 
-  const a = snap.data();
   document.getElementById("alunoModalNome").textContent = a.nome || "Aluno";
-
-  const end = a.endereco || {};
-  const endStr = [end.rua, end.numero, end.bairro, end.cidade, end.estado, end.cep]
-    .filter(Boolean).join(", ") || "—";
+  const endStr = [a.rua, a.numero, a.bairro, a.cidade, a.estado, a.cep].filter(Boolean).join(", ") || "—";
 
   body.innerHTML = `
     <div class="detail-avatar">${avatarHtml(a, "avatar-lg")}</div>
@@ -449,7 +382,7 @@ async function openAlunoModal(uid) {
       <div class="detail-item"><span class="detail-label">Nome</span><span>${a.nome || "—"}</span></div>
       <div class="detail-item"><span class="detail-label">E-mail</span><span>${a.email || "—"}</span></div>
       <div class="detail-item"><span class="detail-label">Telefone</span><span>${a.telefone || "—"}</span></div>
-      <div class="detail-item"><span class="detail-label">Data de nascimento</span><span>${formatDate(a.nascimento)}</span></div>
+      <div class="detail-item"><span class="detail-label">Nascimento</span><span>${formatDate(a.nascimento)}</span></div>
       <div class="detail-item"><span class="detail-label">CPF</span><span>${a.cpf || "—"}</span></div>
       <div class="detail-item"><span class="detail-label">RG</span><span>${a.rg || "—"}</span></div>
       <div class="detail-item detail-full"><span class="detail-label">Endereço</span><span>${endStr}</span></div>
@@ -479,10 +412,8 @@ document.getElementById("editAlunoFoto").addEventListener("change", (e) => {
 });
 
 async function openEditAlunoModal(uid) {
-  const snap = await getDoc(doc(db, "users", uid));
-  if (!snap.exists()) return;
-  const a = snap.data();
-  const end = a.endereco || {};
+  const { data: a } = await supabase.from("users").select("*").eq("id", uid).single();
+  if (!a) return;
 
   document.getElementById("editAlunoUid").value = uid;
   document.getElementById("editNome").value = a.nome || "";
@@ -491,29 +422,28 @@ async function openEditAlunoModal(uid) {
   document.getElementById("editCpf").value = a.cpf || "";
   document.getElementById("editRg").value = a.rg || "";
   document.getElementById("editTelefone").value = a.telefone || "";
-  document.getElementById("editRua").value = end.rua || "";
-  document.getElementById("editNumero").value = end.numero || "";
-  document.getElementById("editBairro").value = end.bairro || "";
-  document.getElementById("editCidade").value = end.cidade || "";
-  document.getElementById("editEstado").value = end.estado || "";
-  document.getElementById("editCep").value = end.cep || "";
+  document.getElementById("editRua").value = a.rua || "";
+  document.getElementById("editNumero").value = a.numero || "";
+  document.getElementById("editBairro").value = a.bairro || "";
+  document.getElementById("editCidade").value = a.cidade || "";
+  document.getElementById("editEstado").value = a.estado || "";
+  document.getElementById("editCep").value = a.cep || "";
   document.getElementById("editInicio").value = a.inicio || "";
   document.getElementById("editObs").value = a.obs || "";
   document.getElementById("editAlunoFoto").value = "";
   document.getElementById("editAlunoError").classList.add("hidden");
   document.getElementById("editAlunoSuccess").classList.add("hidden");
 
-  // Avatar preview
-  if (a.fotoUrl) {
+  if (a.foto_url) {
     document.getElementById("editAvatarInitial").classList.add("hidden");
     const img = document.getElementById("editAvatarPreviewImg");
-    img.src = a.fotoUrl;
+    img.src = a.foto_url;
     img.classList.remove("hidden");
   } else {
     document.getElementById("editAvatarPreviewImg").classList.add("hidden");
-    const initial = document.getElementById("editAvatarInitial");
-    initial.textContent = (a.nome || "?")[0].toUpperCase();
-    initial.classList.remove("hidden");
+    const ini = document.getElementById("editAvatarInitial");
+    ini.textContent = (a.nome || "?")[0].toUpperCase();
+    ini.classList.remove("hidden");
   }
 
   editAlunoModal.classList.remove("hidden");
@@ -533,12 +463,14 @@ document.getElementById("editAlunoForm").addEventListener("submit", async (e) =>
   const fotoFile = document.getElementById("editAlunoFoto").files[0];
 
   try {
-    let fotoUrl;
+    let foto_url;
     if (fotoFile) {
       btn.textContent = "Enviando foto...";
-      const storageRef = ref(storage, `fotos/${uid}`);
-      await uploadBytes(storageRef, fotoFile);
-      fotoUrl = await getDownloadURL(storageRef);
+      const ext = fotoFile.name.split(".").pop();
+      const path = `fotos/${uid}.${ext}`;
+      await supabase.storage.from("fotos").upload(path, fotoFile, { upsert: true });
+      const { data: urlData } = supabase.storage.from("fotos").getPublicUrl(path);
+      foto_url = urlData.publicUrl;
     }
 
     const dados = {
@@ -547,30 +479,26 @@ document.getElementById("editAlunoForm").addEventListener("submit", async (e) =>
       cpf: document.getElementById("editCpf").value.trim(),
       rg: document.getElementById("editRg").value.trim(),
       telefone: document.getElementById("editTelefone").value.trim(),
-      endereco: {
-        rua: document.getElementById("editRua").value.trim(),
-        numero: document.getElementById("editNumero").value.trim(),
-        bairro: document.getElementById("editBairro").value.trim(),
-        cidade: document.getElementById("editCidade").value.trim(),
-        estado: document.getElementById("editEstado").value.trim(),
-        cep: document.getElementById("editCep").value.trim(),
-      },
+      rua: document.getElementById("editRua").value.trim(),
+      numero: document.getElementById("editNumero").value.trim(),
+      bairro: document.getElementById("editBairro").value.trim(),
+      cidade: document.getElementById("editCidade").value.trim(),
+      estado: document.getElementById("editEstado").value.trim(),
+      cep: document.getElementById("editCep").value.trim(),
       inicio: document.getElementById("editInicio").value,
       obs: document.getElementById("editObs").value.trim(),
     };
+    if (foto_url) dados.foto_url = foto_url;
 
-    if (fotoUrl) dados.fotoUrl = fotoUrl;
-
-    await updateDoc(doc(db, "users", uid), dados);
+    const { error } = await supabase.from("users").update(dados).eq("id", uid);
+    if (error) throw error;
 
     successDiv.textContent = "Dados salvos com sucesso!";
     successDiv.classList.remove("hidden");
     await loadAlunos();
   } catch (err) {
-    console.error("Erro ao editar aluno:", err);
-    errorDiv.textContent = err.code === "permission-denied"
-      ? "Sem permissão. Verifique as regras do Firestore."
-      : `Erro ao salvar: ${err.message}`;
+    console.error(err);
+    errorDiv.textContent = `Erro ao salvar: ${err.message}`;
     errorDiv.classList.remove("hidden");
   } finally {
     btn.disabled = false;
@@ -580,9 +508,8 @@ document.getElementById("editAlunoForm").addEventListener("submit", async (e) =>
 
 // ===== HELPERS =====
 function avatarHtml(user, sizeClass) {
-  if (user.fotoUrl) {
-    return `<img src="${user.fotoUrl}" class="avatar ${sizeClass}" alt="${user.nome}" />`;
-  }
+  const foto = user.foto_url || user.fotoUrl;
+  if (foto) return `<img src="${foto}" class="avatar ${sizeClass}" alt="${user.nome}" />`;
   const initial = (user.nome || "?")[0].toUpperCase();
   return `<div class="avatar avatar-initial ${sizeClass}">${initial}</div>`;
 }

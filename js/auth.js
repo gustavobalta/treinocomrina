@@ -1,9 +1,4 @@
-import { auth, db } from "./firebase.js";
-import {
-  signInWithEmailAndPassword,
-  onAuthStateChanged,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { supabase } from "./supabase.js";
 
 const form = document.getElementById("loginForm");
 const emailInput = document.getElementById("email");
@@ -12,9 +7,8 @@ const errorDiv = document.getElementById("loginError");
 const loginBtn = document.getElementById("loginBtn");
 
 // Redireciona se já estiver logado
-onAuthStateChanged(auth, async (user) => {
-  if (!user) return;
-  await redirectByRole(user.uid);
+supabase.auth.getSession().then(async ({ data: { session } }) => {
+  if (session) await redirectByRole(session.user.id);
 });
 
 form.addEventListener("submit", async (e) => {
@@ -23,35 +17,41 @@ form.addEventListener("submit", async (e) => {
   loginBtn.disabled = true;
   loginBtn.textContent = "Entrando...";
 
-  try {
-    const cred = await signInWithEmailAndPassword(auth, emailInput.value.trim(), passwordInput.value);
-    await redirectByRole(cred.user.uid);
-  } catch (err) {
-    errorDiv.textContent = friendlyError(err.code);
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: emailInput.value.trim(),
+    password: passwordInput.value,
+  });
+
+  if (error) {
+    errorDiv.textContent = friendlyError(error.message);
     errorDiv.classList.remove("hidden");
     loginBtn.disabled = false;
     loginBtn.textContent = "Entrar";
+    return;
   }
+
+  await redirectByRole(data.user.id);
 });
 
 async function redirectByRole(uid) {
-  const snap = await getDoc(doc(db, "users", uid));
-  if (!snap.exists()) return;
-  const role = snap.data().role;
-  if (role === "admin") {
+  const { data } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", uid)
+    .single();
+
+  if (!data) return;
+
+  if (data.role === "admin") {
     window.location.href = "pages/admin.html";
   } else {
     window.location.href = "pages/aluno.html";
   }
 }
 
-function friendlyError(code) {
-  const msgs = {
-    "auth/invalid-credential": "E-mail ou senha incorretos.",
-    "auth/user-not-found": "Usuário não encontrado.",
-    "auth/wrong-password": "Senha incorreta.",
-    "auth/too-many-requests": "Muitas tentativas. Tente novamente mais tarde.",
-    "auth/network-request-failed": "Sem conexão. Verifique sua internet.",
-  };
-  return msgs[code] || "Erro ao entrar. Tente novamente.";
+function friendlyError(msg) {
+  if (msg.includes("Invalid login")) return "E-mail ou senha incorretos.";
+  if (msg.includes("Email not confirmed")) return "Confirme seu e-mail antes de entrar.";
+  if (msg.includes("Network")) return "Sem conexão. Verifique sua internet.";
+  return "Erro ao entrar. Tente novamente.";
 }

@@ -1,29 +1,21 @@
-import { auth, db, storage } from "./firebase.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {
-  doc, getDoc, collection, getDocs,
-  addDoc, deleteDoc, query, where,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import {
-  ref, uploadBytes, getDownloadURL, updateDoc,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-import { updateDoc as firestoreUpdateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { supabase } from "./supabase.js";
 
 let currentUser = null;
 let userData = null;
 
-onAuthStateChanged(auth, async (user) => {
-  if (!user) { window.location.href = "../index.html"; return; }
+const DIAS_ORDER = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 
-  const snap = await getDoc(doc(db, "users", user.uid));
-  if (!snap.exists() || snap.data().role !== "aluno") {
-    window.location.href = "../index.html"; return;
-  }
+// ===== INIT =====
+supabase.auth.getSession().then(async ({ data: { session } }) => {
+  if (!session) { window.location.href = "../index.html"; return; }
 
-  currentUser = user;
-  userData = snap.data();
+  currentUser = session.user;
 
-  document.getElementById("userNameDisplay").textContent = userData.nome || user.email;
+  const { data } = await supabase.from("users").select("*").eq("id", currentUser.id).single();
+  if (!data || data.role !== "aluno") { window.location.href = "../index.html"; return; }
+
+  userData = data;
+  document.getElementById("userNameDisplay").textContent = userData.nome || currentUser.email;
   renderHeaderAvatar();
 
   if (userData.bloqueado) {
@@ -35,15 +27,16 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 document.getElementById("logoutBtn").addEventListener("click", async () => {
-  await signOut(auth);
+  await supabase.auth.signOut();
   window.location.href = "../index.html";
 });
 
-// ===== AVATAR NO HEADER =====
+// ===== AVATAR =====
 function renderHeaderAvatar() {
+  const wrap = document.getElementById("headerAvatarWrap");
   const el = document.getElementById("headerAvatar");
-  if (userData.fotoUrl) {
-    el.outerHTML = `<img id="headerAvatar" src="${userData.fotoUrl}" class="avatar avatar-sm" title="Alterar foto" style="cursor:pointer" alt="Foto" />`;
+  if (userData.foto_url) {
+    el.outerHTML = `<img id="headerAvatar" src="${userData.foto_url}" class="avatar avatar-sm" title="Alterar foto" alt="Foto" />`;
   } else {
     el.textContent = (userData.nome || "?")[0].toUpperCase();
   }
@@ -52,24 +45,26 @@ function renderHeaderAvatar() {
   });
 }
 
-// ===== UPLOAD DE FOTO PELO ALUNO =====
+// ===== UPLOAD DE FOTO =====
 document.getElementById("fotoInput").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file || !currentUser) return;
 
   showToast("Enviando foto...");
 
-  try {
-    const storageRef = ref(storage, `fotos/${currentUser.uid}`);
-    await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(storageRef);
-    await firestoreUpdateDoc(doc(db, "users", currentUser.uid), { fotoUrl: url });
-    userData.fotoUrl = url;
-    renderHeaderAvatar();
-    showToast("Foto atualizada!");
-  } catch (err) {
-    showToast("Erro ao enviar foto. Tente novamente.");
-  }
+  const ext = file.name.split(".").pop();
+  const path = `fotos/${currentUser.id}.${ext}`;
+
+  const { error: upErr } = await supabase.storage.from("fotos").upload(path, file, { upsert: true });
+  if (upErr) { showToast("Erro ao enviar foto."); return; }
+
+  const { data: urlData } = supabase.storage.from("fotos").getPublicUrl(path);
+  const url = urlData.publicUrl;
+
+  await supabase.from("users").update({ foto_url: url }).eq("id", currentUser.id);
+  userData.foto_url = url;
+  renderHeaderAvatar();
+  showToast("Foto atualizada!");
 });
 
 // ===== TOAST =====
@@ -81,43 +76,34 @@ function showToast(msg) {
   toast._timer = setTimeout(() => toast.classList.add("hidden"), 3000);
 }
 
-// ===== ORDEM DOS DIAS =====
-const DIAS_ORDER = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
-
 // ===== CARREGAR AULAS =====
 async function loadAulas() {
   const container = document.getElementById("aulasList");
 
-  const aulasSnap = await getDocs(collection(db, "aulas"));
-  const inscricoesSnap = await getDocs(
-    query(collection(db, "inscricoes"), where("userId", "==", currentUser.uid))
-  );
+  const { data: aulas } = await supabase.from("aulas").select("*").order("horario");
+  const { data: minhasInscricoes } = await supabase
+    .from("inscricoes").select("aula_id").eq("user_id", currentUser.id);
+  const { data: todasInscricoes } = await supabase.from("inscricoes").select("aula_id");
 
-  const inscritoIds = new Set(inscricoesSnap.docs.map((d) => d.data().aulaId));
-
-  const aulas = aulasSnap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
-    .sort((a, b) => {
-      const di = DIAS_ORDER.indexOf(a.dia) - DIAS_ORDER.indexOf(b.dia);
-      if (di !== 0) return di;
-      return a.horario.localeCompare(b.horario);
-    });
-
-  if (aulas.length === 0) {
+  if (!aulas || aulas.length === 0) {
     container.innerHTML = '<p class="empty-text">Nenhuma aula disponível no momento.</p>';
     return;
   }
 
-  const allInscricoes = await getDocs(collection(db, "inscricoes"));
+  const inscritoIds = new Set((minhasInscricoes || []).map((i) => i.aula_id));
   const countMap = {};
-  allInscricoes.docs.forEach((d) => {
-    const aid = d.data().aulaId;
-    countMap[aid] = (countMap[aid] || 0) + 1;
+  (todasInscricoes || []).forEach((i) => {
+    countMap[i.aula_id] = (countMap[i.aula_id] || 0) + 1;
   });
 
-  // Agrupa por dia
+  const sorted = [...aulas].sort((a, b) => {
+    const di = DIAS_ORDER.indexOf(a.dia) - DIAS_ORDER.indexOf(b.dia);
+    if (di !== 0) return di;
+    return a.horario.localeCompare(b.horario);
+  });
+
   const porDia = {};
-  aulas.forEach((aula) => {
+  sorted.forEach((aula) => {
     if (!porDia[aula.dia]) porDia[aula.dia] = [];
     porDia[aula.dia].push(aula);
   });
@@ -159,15 +145,9 @@ async function loadAulas() {
 }
 
 function buildAulaBtn(inscrito, lotada, aulaId, bloqueado) {
-  if (bloqueado) {
-    return `<button class="btn-secondary" disabled>Conta bloqueada</button>`;
-  }
-  if (inscrito) {
-    return `<button class="btn-danger" data-action="cancelar" data-aula="${aulaId}">Cancelar inscrição</button>`;
-  }
-  if (lotada) {
-    return `<button class="btn-secondary" disabled>Turma lotada</button>`;
-  }
+  if (bloqueado) return `<button class="btn-secondary" disabled>Conta bloqueada</button>`;
+  if (inscrito) return `<button class="btn-danger" data-action="cancelar" data-aula="${aulaId}">Cancelar inscrição</button>`;
+  if (lotada) return `<button class="btn-secondary" disabled>Turma lotada</button>`;
   return `<button class="btn-success" data-action="inscrever" data-aula="${aulaId}">Inscrever-se</button>`;
 }
 
@@ -177,19 +157,12 @@ async function handleInscricao(btn) {
   btn.disabled = true;
 
   if (action === "inscrever") {
-    await addDoc(collection(db, "inscricoes"), {
-      userId: currentUser.uid,
-      aulaId,
-      criadoEm: new Date(),
-    });
+    await supabase.from("inscricoes").insert({ user_id: currentUser.id, aula_id: aulaId });
   } else {
-    const q = query(
-      collection(db, "inscricoes"),
-      where("userId", "==", currentUser.uid),
-      where("aulaId", "==", aulaId)
-    );
-    const snap = await getDocs(q);
-    for (const d of snap.docs) await deleteDoc(d.ref);
+    await supabase.from("inscricoes")
+      .delete()
+      .eq("user_id", currentUser.id)
+      .eq("aula_id", aulaId);
   }
 
   await loadAulas();
@@ -200,25 +173,18 @@ async function handleInscricao(btn) {
 async function loadMinhasAulas() {
   const container = document.getElementById("minhasAulas");
 
-  const inscricoesSnap = await getDocs(
-    query(collection(db, "inscricoes"), where("userId", "==", currentUser.uid))
-  );
+  const { data: inscricoes } = await supabase
+    .from("inscricoes")
+    .select("aula_id, aulas(*)")
+    .eq("user_id", currentUser.id);
 
-  if (inscricoesSnap.empty) {
+  if (!inscricoes || inscricoes.length === 0) {
     container.innerHTML = '<p class="empty-text">Você ainda não está inscrito em nenhuma aula.</p>';
     return;
   }
 
-  const aulaIds = inscricoesSnap.docs.map((d) => d.data().aulaId);
-
-  const aulas = await Promise.all(
-    aulaIds.map(async (id) => {
-      const snap = await getDoc(doc(db, "aulas", id));
-      return snap.exists() ? { id: snap.id, ...snap.data() } : null;
-    })
-  );
-
-  const valid = aulas
+  const aulas = inscricoes
+    .map((i) => i.aulas)
     .filter(Boolean)
     .sort((a, b) => {
       const di = DIAS_ORDER.indexOf(a.dia) - DIAS_ORDER.indexOf(b.dia);
@@ -227,7 +193,7 @@ async function loadMinhasAulas() {
     });
 
   container.innerHTML = "";
-  valid.forEach((aula) => {
+  aulas.forEach((aula) => {
     const item = document.createElement("div");
     item.className = "inscrito-item";
     item.innerHTML = `
