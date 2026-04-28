@@ -115,24 +115,42 @@ async function loadAulas() {
     countMap[aid] = (countMap[aid] || 0) + 1;
   });
 
-  container.innerHTML = "";
+  // Agrupa por dia
+  const porDia = {};
   aulas.forEach((aula) => {
-    const inscrito = inscritoIds.has(aula.id);
-    const total = countMap[aula.id] || 0;
-    const lotada = total >= aula.vagas;
+    if (!porDia[aula.dia]) porDia[aula.dia] = [];
+    porDia[aula.dia].push(aula);
+  });
 
-    const card = document.createElement("div");
-    card.className = `aula-card${inscrito ? " inscrito" : ""}${lotada && !inscrito ? " lotada" : ""}`;
-    card.innerHTML = `
-      <div class="aula-dia">${aula.dia}</div>
-      <div class="aula-horario">${aula.horario}</div>
-      ${aula.descricao ? `<div class="aula-desc">${aula.descricao}</div>` : ""}
-      <div class="aula-vagas${lotada ? " lotada" : ""}">${total}/${aula.vagas} vagas</div>
-      <div class="aula-actions">
-        ${buildAulaBtn(inscrito, lotada, aula.id, userData.bloqueado)}
-      </div>
-    `;
-    container.appendChild(card);
+  container.innerHTML = "";
+  DIAS_ORDER.filter((dia) => porDia[dia]).forEach((dia) => {
+    const grupo = document.createElement("div");
+    grupo.className = "aulas-grupo";
+    grupo.innerHTML = `<div class="aulas-grupo-dia">${dia}-feira</div>`;
+
+    const grid = document.createElement("div");
+    grid.className = "aulas-grid-inner";
+
+    porDia[dia].forEach((aula) => {
+      const inscrito = inscritoIds.has(aula.id);
+      const total = countMap[aula.id] || 0;
+      const lotada = total >= aula.vagas;
+
+      const card = document.createElement("div");
+      card.className = `aula-card${inscrito ? " inscrito" : ""}${lotada && !inscrito ? " lotada" : ""}`;
+      card.innerHTML = `
+        <div class="aula-horario">${aula.horario}</div>
+        ${aula.descricao ? `<div class="aula-desc">${aula.descricao}</div>` : ""}
+        <div class="aula-vagas${lotada ? " lotada" : ""}">${total}/${aula.vagas} vagas</div>
+        <div class="aula-actions">
+          ${buildAulaBtn(inscrito, lotada, aula.id, userData.bloqueado)}
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+
+    grupo.appendChild(grid);
+    container.appendChild(grupo);
   });
 
   container.querySelectorAll("[data-action]").forEach((btn) => {

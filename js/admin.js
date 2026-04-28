@@ -123,31 +123,45 @@ async function loadAdminAulas() {
     return;
   }
 
-  container.innerHTML = "";
+  // Agrupa por dia
+  const porDia = {};
   aulas.forEach((aula) => {
-    const total = countMap[aula.id] || 0;
-    const item = document.createElement("div");
-    item.className = "aula-admin-item";
-    item.innerHTML = `
-      <div class="aula-admin-info">
-        <div class="aula-admin-dia">${aula.dia}</div>
-        <div class="aula-admin-horario">${aula.horario}</div>
-        ${aula.descricao ? `<div class="aula-admin-desc">${aula.descricao}</div>` : ""}
-        <div class="aula-admin-vagas">${total}/${aula.vagas} inscritos</div>
-      </div>
-      <div class="aula-admin-actions">
-        <button class="btn-secondary" data-action="ver-inscritos" data-aula="${aula.id}" data-label="${aula.dia} ${aula.horario}">
-          Ver inscritos
-        </button>
-        <button class="btn-secondary" data-action="editar-aula" data-aula="${aula.id}">
-          Editar
-        </button>
-        <button class="btn-danger" data-action="excluir-aula" data-aula="${aula.id}">
-          Excluir
-        </button>
-      </div>
-    `;
-    container.appendChild(item);
+    if (!porDia[aula.dia]) porDia[aula.dia] = [];
+    porDia[aula.dia].push(aula);
+  });
+
+  container.innerHTML = "";
+  DIAS_ORDER.filter((dia) => porDia[dia]).forEach((dia) => {
+    const grupo = document.createElement("div");
+    grupo.className = "aulas-grupo";
+    grupo.innerHTML = `<div class="aulas-grupo-dia">${dia}-feira</div>`;
+
+    porDia[dia].forEach((aula) => {
+      const total = countMap[aula.id] || 0;
+      const item = document.createElement("div");
+      item.className = "aula-admin-item";
+      item.innerHTML = `
+        <div class="aula-admin-info">
+          <div class="aula-admin-horario">${aula.horario}</div>
+          ${aula.descricao ? `<div class="aula-admin-desc">${aula.descricao}</div>` : ""}
+          <div class="aula-admin-vagas">${total}/${aula.vagas} inscritos</div>
+        </div>
+        <div class="aula-admin-actions">
+          <button class="btn-secondary" data-action="ver-inscritos" data-aula="${aula.id}" data-label="${aula.dia} ${aula.horario}">
+            Ver inscritos
+          </button>
+          <button class="btn-secondary" data-action="editar-aula" data-aula="${aula.id}">
+            Editar
+          </button>
+          <button class="btn-danger" data-action="excluir-aula" data-aula="${aula.id}">
+            Excluir
+          </button>
+        </div>
+      `;
+      grupo.appendChild(item);
+    });
+
+    container.appendChild(grupo);
   });
 
   container.querySelectorAll("[data-action='ver-inscritos']").forEach((btn) => {
