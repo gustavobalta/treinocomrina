@@ -595,6 +595,11 @@ body {
 .avatar-md { width: 44px; height: 44px; font-size: 1rem; }
 .avatar-lg { width: 80px; height: 80px; font-size: 1.8rem; }
 
+img.avatar { display: block; width: 44px; height: 44px; }
+img.avatar.avatar-sm { width: 32px; height: 32px; }
+img.avatar.avatar-md { width: 44px; height: 44px; }
+img.avatar.avatar-lg { width: 80px; height: 80px; }
+
 .header-avatar-wrap {
   position: relative;
   cursor: pointer;
