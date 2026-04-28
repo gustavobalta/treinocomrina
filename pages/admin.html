@@ -75,12 +75,32 @@
     <div class="tab-content" id="tab-alunos">
 
       <section class="section-card">
-        <h2 class="section-title">Cadastrar Aluno</h2>
-        <p class="section-subtitle">Um e-mail será enviado ao aluno para ele definir a própria senha.</p>
+        <div class="section-header">
+          <h2 class="section-title">Gerenciar Alunos</h2>
+          <button class="btn-primary" id="abrirCadastroAlunoBtn" style="width:auto;">+ Cadastrar Aluno</button>
+        </div>
+        <div id="alunosList" class="alunos-admin-list">
+          <p class="loading-text">Carregando alunos...</p>
+        </div>
+      </section>
 
+    </div>
+
+  </main>
+
+  <!-- Modal: cadastrar aluno -->
+  <div id="cadastroAlunoModal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>Cadastrar Aluno</h3>
+        <button class="modal-close" id="cadastroAlunoClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.82rem; color:var(--white-muted); margin-bottom:1rem;">
+          Um e-mail será enviado ao aluno para ele definir a própria senha.
+        </p>
         <form id="novoAlunoForm" class="admin-form">
 
-          <!-- Foto -->
           <div class="form-section-label">Foto</div>
           <div class="avatar-upload-wrap">
             <div class="avatar-preview" id="avatarPreview">
@@ -93,7 +113,7 @@
               </label>
               <input type="file" id="alunoFoto" accept="image/*" class="hidden" />
               <p style="font-size:0.78rem; color:var(--white-muted); margin-top:0.35rem;">
-                JPG ou PNG. Opcional — o aluno também pode adicionar depois.
+                JPG ou PNG. Opcional.
               </p>
             </div>
           </div>
@@ -113,7 +133,6 @@
               <input type="date" id="alunoNascimento" required />
             </div>
           </div>
-
           <div class="form-row">
             <div class="form-group">
               <label>CPF</label>
@@ -175,18 +194,9 @@
           <div id="alunoFormSuccess" class="success-msg hidden"></div>
           <button type="submit" class="btn-primary" id="cadastrarAlunoBtn">Cadastrar e Enviar E-mail</button>
         </form>
-      </section>
-
-      <section class="section-card">
-        <h2 class="section-title">Gerenciar Alunos</h2>
-        <div id="alunosList" class="alunos-admin-list">
-          <p class="loading-text">Carregando alunos...</p>
-        </div>
-      </section>
-
+      </div>
     </div>
-
-  </main>
+  </div>
 
   <!-- Modal: editar aluno -->
   <div id="editAlunoModal" class="modal hidden">

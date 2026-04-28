@@ -280,6 +280,13 @@ body {
   margin-top: -0.5rem;
 }
 
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 /* ===== AULAS GRID (aluno) ===== */
 .aulas-grid {
   display: grid;

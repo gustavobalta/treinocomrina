@@ -44,6 +44,18 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   window.location.href = "../index.html";
 });
 
+// ===== MODAL CADASTRO ALUNO =====
+const cadastroAlunoModal = document.getElementById("cadastroAlunoModal");
+document.getElementById("abrirCadastroAlunoBtn").addEventListener("click", () => {
+  cadastroAlunoModal.classList.remove("hidden");
+});
+document.getElementById("cadastroAlunoClose").addEventListener("click", () => {
+  cadastroAlunoModal.classList.add("hidden");
+});
+cadastroAlunoModal.addEventListener("click", (e) => {
+  if (e.target === cadastroAlunoModal) cadastroAlunoModal.classList.add("hidden");
+});
+
 // ===== PREVIEW FOTO NO CADASTRO =====
 document.getElementById("alunoFoto").addEventListener("change", (e) => {
   const file = e.target.files[0];
@@ -306,8 +318,7 @@ document.getElementById("novoAlunoForm").addEventListener("submit", async (e) =>
     document.getElementById("avatarInitial").classList.remove("hidden");
     document.getElementById("avatarPreviewImg").classList.add("hidden");
 
-    successDiv.textContent = `Aluno "${nome}" cadastrado! E-mail de acesso enviado para ${email}.`;
-    successDiv.classList.remove("hidden");
+    cadastroAlunoModal.classList.add("hidden");
     await loadAlunos();
   } catch (err) {
     if (err.code === "auth/wrong-password") adminPassword = "";
