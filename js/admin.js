@@ -342,6 +342,7 @@ async function loadAlunos() {
           <span class="aluno-status-badge pendente">Pendente</span>
         </div>
         <div class="aluno-actions">
+          <button class="btn-secondary" data-action="editar-pendente" data-email="${p.email}">Editar</button>
           <button class="btn-secondary" data-action="reenviar" data-email="${p.email}">Reenviar e-mail</button>
           <button class="btn-danger" data-action="excluir-pendente" data-email="${p.email}">Excluir</button>
         </div>
@@ -349,6 +350,9 @@ async function loadAlunos() {
       container.appendChild(item);
     });
 
+    container.querySelectorAll("[data-action='editar-pendente']").forEach((btn) =>
+      btn.addEventListener("click", () => openEditPendenteModal(btn.dataset.email))
+    );
     container.querySelectorAll("[data-action='reenviar']").forEach((btn) =>
       btn.addEventListener("click", () => reenviarConvite(btn.dataset.email, btn))
     );
@@ -395,6 +399,39 @@ async function loadAlunos() {
     container.querySelectorAll("[data-action='ver-aluno']").forEach((btn) => btn.addEventListener("click", () => openAlunoModal(btn.dataset.uid)));
     container.querySelectorAll("[data-action='editar-aluno']").forEach((btn) => btn.addEventListener("click", () => openEditAlunoModal(btn.dataset.uid)));
   }
+}
+
+async function openEditPendenteModal(email) {
+  const { data: p } = await supabase.from("pending_users").select("*").eq("email", email).single();
+  if (!p) return;
+
+  // Reutiliza o modal de edição, marcando como pendente
+  document.getElementById("editAlunoUid").value = "";
+  document.getElementById("editAlunoUid").dataset.pendingEmail = email;
+  document.getElementById("editNome").value = p.nome || "";
+  document.getElementById("editEmail").value = p.email || "";
+  document.getElementById("editNascimento").value = p.nascimento || "";
+  document.getElementById("editCpf").value = p.cpf || "";
+  document.getElementById("editRg").value = p.rg || "";
+  document.getElementById("editTelefone").value = p.telefone || "";
+  document.getElementById("editRua").value = p.rua || "";
+  document.getElementById("editNumero").value = p.numero || "";
+  document.getElementById("editBairro").value = p.bairro || "";
+  document.getElementById("editCidade").value = p.cidade || "";
+  document.getElementById("editEstado").value = p.estado || "";
+  document.getElementById("editCep").value = p.cep || "";
+  document.getElementById("editInicio").value = p.inicio || "";
+  document.getElementById("editObs").value = p.obs || "";
+  document.getElementById("editAlunoFoto").value = "";
+  document.getElementById("editAlunoError").classList.add("hidden");
+  document.getElementById("editAlunoSuccess").classList.add("hidden");
+
+  document.getElementById("editAvatarPreviewImg").classList.add("hidden");
+  const ini = document.getElementById("editAvatarInitial");
+  ini.textContent = (p.nome || "?")[0].toUpperCase();
+  ini.classList.remove("hidden");
+
+  document.getElementById("editAlunoModal").classList.remove("hidden");
 }
 
 async function reenviarConvite(email, btn) {
@@ -525,38 +562,43 @@ document.getElementById("editAlunoForm").addEventListener("submit", async (e) =>
   btn.textContent = "Salvando...";
 
   const uid = document.getElementById("editAlunoUid").value;
+  const pendingEmail = document.getElementById("editAlunoUid").dataset.pendingEmail;
   const fotoFile = document.getElementById("editAlunoFoto").files[0];
+  const isPendente = !uid && !!pendingEmail;
+
+  const dados = {
+    nome: document.getElementById("editNome").value.trim(),
+    nascimento: document.getElementById("editNascimento").value || null,
+    cpf: document.getElementById("editCpf").value.trim(),
+    rg: document.getElementById("editRg").value.trim(),
+    telefone: document.getElementById("editTelefone").value.trim(),
+    rua: document.getElementById("editRua").value.trim(),
+    numero: document.getElementById("editNumero").value.trim(),
+    bairro: document.getElementById("editBairro").value.trim(),
+    cidade: document.getElementById("editCidade").value.trim(),
+    estado: document.getElementById("editEstado").value.trim(),
+    cep: document.getElementById("editCep").value.trim(),
+    inicio: document.getElementById("editInicio").value || null,
+    obs: document.getElementById("editObs").value.trim(),
+  };
 
   try {
-    let foto_url;
-    if (fotoFile) {
+    if (!isPendente && fotoFile) {
       btn.textContent = "Enviando foto...";
       const ext = fotoFile.name.split(".").pop();
       const path = `fotos/${uid}.${ext}`;
       await supabase.storage.from("fotos").upload(path, fotoFile, { upsert: true });
       const { data: urlData } = supabase.storage.from("fotos").getPublicUrl(path);
-      foto_url = urlData.publicUrl;
+      dados.foto_url = urlData.publicUrl;
     }
 
-    const dados = {
-      nome: document.getElementById("editNome").value.trim(),
-      nascimento: document.getElementById("editNascimento").value,
-      cpf: document.getElementById("editCpf").value.trim(),
-      rg: document.getElementById("editRg").value.trim(),
-      telefone: document.getElementById("editTelefone").value.trim(),
-      rua: document.getElementById("editRua").value.trim(),
-      numero: document.getElementById("editNumero").value.trim(),
-      bairro: document.getElementById("editBairro").value.trim(),
-      cidade: document.getElementById("editCidade").value.trim(),
-      estado: document.getElementById("editEstado").value.trim(),
-      cep: document.getElementById("editCep").value.trim(),
-      inicio: document.getElementById("editInicio").value,
-      obs: document.getElementById("editObs").value.trim(),
-    };
-    if (foto_url) dados.foto_url = foto_url;
-
-    const { error } = await supabase.from("users").update(dados).eq("id", uid);
-    if (error) throw error;
+    if (isPendente) {
+      const { error } = await supabase.from("pending_users").update(dados).eq("email", pendingEmail);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from("users").update(dados).eq("id", uid);
+      if (error) throw error;
+    }
 
     successDiv.textContent = "Dados salvos com sucesso!";
     successDiv.classList.remove("hidden");
