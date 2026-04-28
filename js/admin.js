@@ -390,6 +390,7 @@ async function loadAlunos() {
             data-uid="${aluno.id}" data-bloqueado="${bloqueado}">
             ${bloqueado ? "Desbloquear" : "Bloquear"}
           </button>
+          <button class="btn-danger" data-action="excluir-aluno" data-uid="${aluno.id}" data-nome="${aluno.nome || "Aluno"}">Excluir</button>
         </div>
       `;
       container.appendChild(item);
@@ -398,6 +399,7 @@ async function loadAlunos() {
     container.querySelectorAll("[data-action='toggle-block']").forEach((btn) => btn.addEventListener("click", () => toggleBlock(btn)));
     container.querySelectorAll("[data-action='ver-aluno']").forEach((btn) => btn.addEventListener("click", () => openAlunoModal(btn.dataset.uid)));
     container.querySelectorAll("[data-action='editar-aluno']").forEach((btn) => btn.addEventListener("click", () => openEditAlunoModal(btn.dataset.uid)));
+    container.querySelectorAll("[data-action='excluir-aluno']").forEach((btn) => btn.addEventListener("click", () => excluirAluno(btn.dataset.uid, btn.dataset.nome)));
   }
 }
 
@@ -410,6 +412,7 @@ async function openEditPendenteModal(email) {
   document.getElementById("editAlunoUid").dataset.pendingEmail = email;
   document.getElementById("editNome").value = p.nome || "";
   document.getElementById("editEmail").value = p.email || "";
+  document.getElementById("editEmail").disabled = false;
   document.getElementById("editNascimento").value = p.nascimento || "";
   document.getElementById("editCpf").value = p.cpf || "";
   document.getElementById("editRg").value = p.rg || "";
@@ -451,6 +454,13 @@ async function reenviarConvite(email, btn) {
 async function excluirPendente(email) {
   if (!confirm(`Excluir o cadastro pendente de ${email}?`)) return;
   await supabase.from("pending_users").delete().eq("email", email);
+  await loadAlunos();
+}
+
+async function excluirAluno(uid, nome) {
+  if (!confirm(`Tem certeza que deseja excluir o aluno "${nome}"?\n\nEsta ação é irreversível e removerá todas as inscrições do aluno.`)) return;
+  await supabase.from("inscricoes").delete().eq("user_id", uid);
+  await supabase.from("users").delete().eq("id", uid);
   await loadAlunos();
 }
 
@@ -518,8 +528,10 @@ async function openEditAlunoModal(uid) {
   if (!a) return;
 
   document.getElementById("editAlunoUid").value = uid;
+  delete document.getElementById("editAlunoUid").dataset.pendingEmail;
   document.getElementById("editNome").value = a.nome || "";
   document.getElementById("editEmail").value = a.email || "";
+  document.getElementById("editEmail").disabled = true;
   document.getElementById("editNascimento").value = a.nascimento || "";
   document.getElementById("editCpf").value = a.cpf || "";
   document.getElementById("editRg").value = a.rg || "";
@@ -593,8 +605,17 @@ document.getElementById("editAlunoForm").addEventListener("submit", async (e) =>
     }
 
     if (isPendente) {
-      const { error } = await supabase.from("pending_users").update(dados).eq("email", pendingEmail);
-      if (error) throw error;
+      const novoEmail = document.getElementById("editEmail").value.trim();
+      if (novoEmail !== pendingEmail) {
+        // E-mail mudou: deleta o registro antigo e insere com o novo e-mail
+        const { error: delErr } = await supabase.from("pending_users").delete().eq("email", pendingEmail);
+        if (delErr) throw delErr;
+        const { error: insErr } = await supabase.from("pending_users").insert({ ...dados, email: novoEmail });
+        if (insErr) throw insErr;
+      } else {
+        const { error } = await supabase.from("pending_users").update(dados).eq("email", pendingEmail);
+        if (error) throw error;
+      }
     } else {
       const { error } = await supabase.from("users").update(dados).eq("id", uid);
       if (error) throw error;
