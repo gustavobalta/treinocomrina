@@ -1,7 +1,7 @@
 import { auth, db } from "./firebase.js";
 import {
   onAuthStateChanged, signOut,
-  createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   doc, getDoc, setDoc, collection, getDocs, addDoc, deleteDoc,
@@ -26,6 +26,17 @@ onAuthStateChanged(auth, async (user) => {
   await loadAlunos();
 });
 
+// ===== ABAS =====
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.add("active");
+  });
+});
+
+// ===== LOGOUT =====
 document.getElementById("logoutBtn").addEventListener("click", async () => {
   adminPassword = "";
   await signOut(auth);
@@ -50,7 +61,6 @@ document.getElementById("novaAulaForm").addEventListener("submit", async (e) => 
   }
 
   await addDoc(collection(db, "aulas"), { dia, horario, vagas, descricao, criadoEm: new Date() });
-
   e.target.reset();
   await loadAdminAulas();
 });
@@ -116,27 +126,23 @@ async function loadAdminAulas() {
 
 async function excluirAula(aulaId) {
   if (!confirm("Excluir esta aula? Todas as inscrições serão removidas.")) return;
-
   await deleteDoc(doc(db, "aulas", aulaId));
-
-  // Remove inscrições associadas
   const q = query(collection(db, "inscricoes"), where("aulaId", "==", aulaId));
   const snap = await getDocs(q);
   for (const d of snap.docs) await deleteDoc(d.ref);
-
   await loadAdminAulas();
 }
 
 // ===== MODAL INSCRITOS =====
-const modal = document.getElementById("inscritosModal");
-document.getElementById("modalClose").addEventListener("click", () => modal.classList.add("hidden"));
-modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.add("hidden"); });
+const inscritosModal = document.getElementById("inscritosModal");
+document.getElementById("modalClose").addEventListener("click", () => inscritosModal.classList.add("hidden"));
+inscritosModal.addEventListener("click", (e) => { if (e.target === inscritosModal) inscritosModal.classList.add("hidden"); });
 
 async function openInscritosModal(aulaId, label) {
   document.getElementById("modalAulaTitulo").textContent = `Inscritos — ${label}`;
   const bodyDiv = document.getElementById("modalInscritosList");
   bodyDiv.innerHTML = '<p class="loading-text">Carregando...</p>';
-  modal.classList.remove("hidden");
+  inscritosModal.classList.remove("hidden");
 
   const q = query(collection(db, "inscricoes"), where("aulaId", "==", aulaId));
   const snap = await getDocs(q);
@@ -163,6 +169,89 @@ async function openInscritosModal(aulaId, label) {
     `;
     bodyDiv.appendChild(item);
   });
+}
+
+// ===== CADASTRAR NOVO ALUNO =====
+document.getElementById("novoAlunoForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorDiv = document.getElementById("alunoFormError");
+  const successDiv = document.getElementById("alunoFormSuccess");
+  const btn = document.getElementById("cadastrarAlunoBtn");
+  errorDiv.classList.add("hidden");
+  successDiv.classList.add("hidden");
+
+  const nome = document.getElementById("alunoNome").value.trim();
+  const email = document.getElementById("alunoEmail").value.trim();
+  const nascimento = document.getElementById("alunoNascimento").value;
+  const cpf = document.getElementById("alunoCpf").value.trim();
+  const rg = document.getElementById("alunoRg").value.trim();
+  const telefone = document.getElementById("alunoTelefone").value.trim();
+  const rua = document.getElementById("alunoRua").value.trim();
+  const numero = document.getElementById("alunoNumero").value.trim();
+  const bairro = document.getElementById("alunoBairro").value.trim();
+  const cidade = document.getElementById("alunoCidade").value.trim();
+  const estado = document.getElementById("alunoEstado").value.trim();
+  const cep = document.getElementById("alunoCep").value.trim();
+  const inicio = document.getElementById("alunoInicio").value;
+  const obs = document.getElementById("alunoObs").value.trim();
+
+  btn.disabled = true;
+  btn.textContent = "Cadastrando...";
+
+  try {
+    if (!adminPassword) {
+      adminPassword = prompt("Confirme sua senha de administrador para continuar:");
+      if (!adminPassword) {
+        btn.disabled = false;
+        btn.textContent = "Cadastrar e Enviar E-mail";
+        return;
+      }
+    }
+
+    // Senha aleatória temporária (o aluno vai redefinir pelo email)
+    const senhaTemp = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10);
+
+    const cred = await createUserWithEmailAndPassword(auth, email, senhaTemp);
+    const alunoUid = cred.user.uid;
+
+    await setDoc(doc(db, "users", alunoUid), {
+      nome, email, nascimento, cpf, rg, telefone,
+      endereco: { rua, numero, bairro, cidade, estado, cep },
+      inicio, obs,
+      role: "aluno",
+      bloqueado: false,
+      criadoEm: new Date(),
+    });
+
+    // Envia email para o aluno definir a senha
+    await sendPasswordResetEmail(auth, email);
+
+    // Reautentica o admin
+    await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+
+    e.target.reset();
+    successDiv.textContent = `Aluno "${nome}" cadastrado! E-mail de acesso enviado para ${email}.`;
+    successDiv.classList.remove("hidden");
+    await loadAlunos();
+  } catch (err) {
+    if (err.code === "auth/wrong-password") adminPassword = "";
+    errorDiv.textContent = friendlyAlunoError(err.code);
+    errorDiv.classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Cadastrar e Enviar E-mail";
+  }
+});
+
+function friendlyAlunoError(code) {
+  const msgs = {
+    "auth/email-already-in-use": "Este e-mail já está cadastrado.",
+    "auth/invalid-email": "E-mail inválido.",
+    "auth/weak-password": "Erro interno de senha temporária.",
+    "auth/wrong-password": "Senha do administrador incorreta. Tente novamente.",
+    "auth/network-request-failed": "Sem conexão. Verifique sua internet.",
+  };
+  return msgs[code] || "Erro ao cadastrar aluno. Tente novamente.";
 }
 
 // ===== CARREGAR ALUNOS =====
@@ -194,6 +283,9 @@ async function loadAlunos() {
         </span>
       </div>
       <div class="aluno-actions">
+        <button class="btn-secondary" data-action="ver-aluno" data-uid="${aluno.id}">
+          Detalhes
+        </button>
         <button
           class="${bloqueado ? "btn-success" : "btn-danger"}"
           data-action="toggle-block"
@@ -210,81 +302,58 @@ async function loadAlunos() {
   container.querySelectorAll("[data-action='toggle-block']").forEach((btn) => {
     btn.addEventListener("click", () => toggleBlock(btn));
   });
+
+  container.querySelectorAll("[data-action='ver-aluno']").forEach((btn) => {
+    btn.addEventListener("click", () => openAlunoModal(btn.dataset.uid));
+  });
 }
 
 async function toggleBlock(btn) {
   const uid = btn.dataset.uid;
   const atual = btn.dataset.bloqueado === "true";
-  const novoEstado = !atual;
-
-  await updateDoc(doc(db, "users", uid), { bloqueado: novoEstado });
+  await updateDoc(doc(db, "users", uid), { bloqueado: !atual });
   await loadAlunos();
 }
 
-// ===== CADASTRAR NOVO ALUNO =====
-document.getElementById("novoAlunoForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const errorDiv = document.getElementById("alunoFormError");
-  const successDiv = document.getElementById("alunoFormSuccess");
-  const btn = document.getElementById("cadastrarAlunoBtn");
-  errorDiv.classList.add("hidden");
-  successDiv.classList.add("hidden");
+// ===== MODAL DETALHES DO ALUNO =====
+const alunoModal = document.getElementById("alunoModal");
+document.getElementById("alunoModalClose").addEventListener("click", () => alunoModal.classList.add("hidden"));
+alunoModal.addEventListener("click", (e) => { if (e.target === alunoModal) alunoModal.classList.add("hidden"); });
 
-  const nome = document.getElementById("alunoNome").value.trim();
-  const email = document.getElementById("alunoEmail").value.trim();
-  const senha = document.getElementById("alunoSenha").value;
+async function openAlunoModal(uid) {
+  document.getElementById("alunoModalNome").textContent = "Detalhes do Aluno";
+  const body = document.getElementById("alunoModalBody");
+  body.innerHTML = '<p class="loading-text">Carregando...</p>';
+  alunoModal.classList.remove("hidden");
 
-  btn.disabled = true;
-  btn.textContent = "Cadastrando...";
+  const snap = await getDoc(doc(db, "users", uid));
+  if (!snap.exists()) { body.innerHTML = '<p class="empty-text">Aluno não encontrado.</p>'; return; }
 
-  try {
-    // Pede a senha do admin para reautenticar depois
-    if (!adminPassword) {
-      adminPassword = prompt("Para cadastrar um aluno, confirme sua senha de administrador:");
-      if (!adminPassword) {
-        btn.disabled = false;
-        btn.textContent = "Cadastrar Aluno";
-        return;
-      }
-    }
+  const a = snap.data();
+  document.getElementById("alunoModalNome").textContent = a.nome || "Aluno";
 
-    // Cria o aluno no Firebase Auth
-    const cred = await createUserWithEmailAndPassword(auth, email, senha);
-    const alunoUid = cred.user.uid;
+  const end = a.endereco || {};
+  const endStr = [end.rua, end.numero, end.bairro, end.cidade, end.estado, end.cep]
+    .filter(Boolean).join(", ") || "—";
 
-    // Salva no Firestore
-    await setDoc(doc(db, "users", alunoUid), {
-      nome,
-      email,
-      role: "aluno",
-      bloqueado: false,
-      criadoEm: new Date(),
-    });
+  body.innerHTML = `
+    <div class="detail-grid">
+      <div class="detail-item"><span class="detail-label">Nome</span><span>${a.nome || "—"}</span></div>
+      <div class="detail-item"><span class="detail-label">E-mail</span><span>${a.email || "—"}</span></div>
+      <div class="detail-item"><span class="detail-label">Telefone</span><span>${a.telefone || "—"}</span></div>
+      <div class="detail-item"><span class="detail-label">Data de nascimento</span><span>${formatDate(a.nascimento)}</span></div>
+      <div class="detail-item"><span class="detail-label">CPF</span><span>${a.cpf || "—"}</span></div>
+      <div class="detail-item"><span class="detail-label">RG</span><span>${a.rg || "—"}</span></div>
+      <div class="detail-item detail-full"><span class="detail-label">Endereço</span><span>${endStr}</span></div>
+      <div class="detail-item"><span class="detail-label">Início</span><span>${formatDate(a.inicio)}</span></div>
+      <div class="detail-item"><span class="detail-label">Status</span><span>${a.bloqueado ? "Bloqueado" : "Ativo"}</span></div>
+      ${a.obs ? `<div class="detail-item detail-full"><span class="detail-label">Observações</span><span>${a.obs}</span></div>` : ""}
+    </div>
+  `;
+}
 
-    // Reautentica o admin (Firebase deslogou ao criar o aluno)
-    await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-
-    e.target.reset();
-    successDiv.textContent = `Aluno "${nome}" cadastrado com sucesso!`;
-    successDiv.classList.remove("hidden");
-    await loadAlunos();
-  } catch (err) {
-    adminPassword = "";
-    errorDiv.textContent = friendlyAlunoError(err.code);
-    errorDiv.classList.remove("hidden");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Cadastrar Aluno";
-  }
-});
-
-function friendlyAlunoError(code) {
-  const msgs = {
-    "auth/email-already-in-use": "Este e-mail já está cadastrado.",
-    "auth/invalid-email": "E-mail inválido.",
-    "auth/weak-password": "Senha fraca. Use pelo menos 6 caracteres.",
-    "auth/wrong-password": "Senha do administrador incorreta.",
-    "auth/network-request-failed": "Sem conexão. Verifique sua internet.",
-  };
-  return msgs[code] || "Erro ao cadastrar aluno. Tente novamente.";
+function formatDate(val) {
+  if (!val) return "—";
+  const [y, m, d] = val.split("-");
+  return `${d}/${m}/${y}`;
 }

@@ -523,6 +523,81 @@ body {
   padding: 0.5rem 0;
 }
 
+/* ===== TABS ===== */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--black-card);
+  border: 1px solid var(--black-border);
+  border-radius: var(--radius);
+  padding: 0.35rem;
+}
+
+.tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--white-muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.tab-btn:hover { color: var(--white); }
+
+.tab-btn.active {
+  background: var(--accent);
+  color: var(--white);
+}
+
+.tab-content { display: none; flex-direction: column; gap: 1.5rem; }
+.tab-content.active { display: flex; }
+
+/* ===== FORM SECTION LABEL ===== */
+.form-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  padding-top: 0.25rem;
+}
+
+/* ===== DETAIL MODAL ===== */
+.modal-large { max-width: 640px; }
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.detail-full { grid-column: 1 / -1; }
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.detail-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--white-muted);
+}
+
+.detail-item span:last-child {
+  font-size: 0.9rem;
+  color: var(--white);
+}
+
 /* ===== UTILITIES ===== */
 .hidden { display: none !important; }
 

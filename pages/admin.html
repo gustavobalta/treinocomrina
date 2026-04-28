@@ -18,90 +18,155 @@
 
   <main class="app-main">
 
-    <!-- Criar nova aula -->
-    <section class="section-card">
-      <h2 class="section-title">Nova Aula</h2>
+    <!-- Abas -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="aulas">Aulas</button>
+      <button class="tab-btn" data-tab="alunos">Alunos</button>
+    </div>
 
-      <form id="novaAulaForm" class="admin-form">
-        <div class="form-row">
-          <div class="form-group">
-            <label>Dia da semana</label>
-            <select id="diaSemana" required>
-              <option value="">Selecione...</option>
-              <option value="Segunda">Segunda-feira</option>
-              <option value="Terça">Terça-feira</option>
-              <option value="Quarta">Quarta-feira</option>
-              <option value="Quinta">Quinta-feira</option>
-              <option value="Sexta">Sexta-feira</option>
-              <option value="Sábado">Sábado</option>
-              <option value="Domingo">Domingo</option>
-            </select>
-          </div>
+    <!-- ===== ABA AULAS ===== -->
+    <div class="tab-content active" id="tab-aulas">
 
-          <div class="form-group">
-            <label>Horário</label>
-            <input type="time" id="horario" required />
+      <section class="section-card">
+        <h2 class="section-title">Nova Aula</h2>
+        <form id="novaAulaForm" class="admin-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Dia da semana</label>
+              <select id="diaSemana" required>
+                <option value="">Selecione...</option>
+                <option value="Segunda">Segunda-feira</option>
+                <option value="Terça">Terça-feira</option>
+                <option value="Quarta">Quarta-feira</option>
+                <option value="Quinta">Quinta-feira</option>
+                <option value="Sexta">Sexta-feira</option>
+                <option value="Sábado">Sábado</option>
+                <option value="Domingo">Domingo</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Horário</label>
+              <input type="time" id="horario" required />
+            </div>
+            <div class="form-group">
+              <label>Vagas</label>
+              <input type="number" id="vagas" min="1" max="100" placeholder="Ex: 15" required />
+            </div>
+            <div class="form-group">
+              <label>Descrição (opcional)</label>
+              <input type="text" id="descricao" placeholder="Ex: Funcional, Musculação..." />
+            </div>
           </div>
+          <div id="aulaFormError" class="error-msg hidden"></div>
+          <button type="submit" class="btn-primary">Criar Aula</button>
+        </form>
+      </section>
 
-          <div class="form-group">
-            <label>Vagas</label>
-            <input type="number" id="vagas" min="1" max="100" placeholder="Ex: 15" required />
-          </div>
-
-          <div class="form-group">
-            <label>Descrição (opcional)</label>
-            <input type="text" id="descricao" placeholder="Ex: Funcional, Musculação..." />
-          </div>
+      <section class="section-card">
+        <h2 class="section-title">Aulas Cadastradas</h2>
+        <div id="adminAulasList" class="aulas-admin-list">
+          <p class="loading-text">Carregando aulas...</p>
         </div>
+      </section>
 
-        <div id="aulaFormError" class="error-msg hidden"></div>
-        <button type="submit" class="btn-primary">Criar Aula</button>
-      </form>
-    </section>
+    </div>
 
-    <!-- Aulas cadastradas -->
-    <section class="section-card">
-      <h2 class="section-title">Aulas Cadastradas</h2>
-      <div id="adminAulasList" class="aulas-admin-list">
-        <p class="loading-text">Carregando aulas...</p>
-      </div>
-    </section>
+    <!-- ===== ABA ALUNOS ===== -->
+    <div class="tab-content" id="tab-alunos">
 
-    <!-- Cadastrar novo aluno -->
-    <section class="section-card">
-      <h2 class="section-title">Cadastrar Aluno</h2>
+      <section class="section-card">
+        <h2 class="section-title">Cadastrar Aluno</h2>
+        <p class="section-subtitle">Um e-mail será enviado ao aluno para ele definir a própria senha.</p>
 
-      <form id="novoAlunoForm" class="admin-form">
-        <div class="form-row">
-          <div class="form-group">
-            <label>Nome completo</label>
-            <input type="text" id="alunoNome" placeholder="Nome do aluno" required />
+        <form id="novoAlunoForm" class="admin-form">
+
+          <div class="form-section-label">Dados pessoais</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nome completo *</label>
+              <input type="text" id="alunoNome" placeholder="Nome completo" required />
+            </div>
+            <div class="form-group">
+              <label>E-mail *</label>
+              <input type="email" id="alunoEmail" placeholder="email@aluno.com" required />
+            </div>
+            <div class="form-group">
+              <label>Data de nascimento *</label>
+              <input type="date" id="alunoNascimento" required />
+            </div>
           </div>
 
-          <div class="form-group">
-            <label>E-mail</label>
-            <input type="email" id="alunoEmail" placeholder="email@aluno.com" required />
+          <div class="form-row">
+            <div class="form-group">
+              <label>CPF</label>
+              <input type="text" id="alunoCpf" placeholder="000.000.000-00" maxlength="14" />
+            </div>
+            <div class="form-group">
+              <label>RG</label>
+              <input type="text" id="alunoRg" placeholder="00.000.000-0" maxlength="12" />
+            </div>
+            <div class="form-group">
+              <label>Telefone</label>
+              <input type="tel" id="alunoTelefone" placeholder="(00) 00000-0000" maxlength="15" />
+            </div>
           </div>
 
-          <div class="form-group">
-            <label>Senha inicial</label>
-            <input type="password" id="alunoSenha" placeholder="Mínimo 6 caracteres" required minlength="6" />
+          <div class="form-section-label">Endereço</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Rua / Avenida</label>
+              <input type="text" id="alunoRua" placeholder="Rua..." />
+            </div>
+            <div class="form-group">
+              <label>Número</label>
+              <input type="text" id="alunoNumero" placeholder="Nº" />
+            </div>
+            <div class="form-group">
+              <label>Bairro</label>
+              <input type="text" id="alunoBairro" placeholder="Bairro" />
+            </div>
           </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Cidade</label>
+              <input type="text" id="alunoCidade" placeholder="Cidade" />
+            </div>
+            <div class="form-group">
+              <label>Estado</label>
+              <input type="text" id="alunoEstado" placeholder="UF" maxlength="2" />
+            </div>
+            <div class="form-group">
+              <label>CEP</label>
+              <input type="text" id="alunoCep" placeholder="00000-000" maxlength="9" />
+            </div>
+          </div>
+
+          <div class="form-section-label">Dados do plano</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Data de início *</label>
+              <input type="date" id="alunoInicio" required />
+            </div>
+            <div class="form-group">
+              <label>Observações</label>
+              <input type="text" id="alunoObs" placeholder="Ex: plano mensal, indicação..." />
+            </div>
+          </div>
+
+          <div id="alunoFormError" class="error-msg hidden"></div>
+          <div id="alunoFormSuccess" class="success-msg hidden"></div>
+          <button type="submit" class="btn-primary" id="cadastrarAlunoBtn">Cadastrar e Enviar E-mail</button>
+        </form>
+      </section>
+
+      <section class="section-card">
+        <h2 class="section-title">Gerenciar Alunos</h2>
+        <div id="alunosList" class="alunos-admin-list">
+          <p class="loading-text">Carregando alunos...</p>
         </div>
+      </section>
 
-        <div id="alunoFormError" class="error-msg hidden"></div>
-        <div id="alunoFormSuccess" class="success-msg hidden"></div>
-        <button type="submit" class="btn-primary" id="cadastrarAlunoBtn">Cadastrar Aluno</button>
-      </form>
-    </section>
-
-    <!-- Gerenciar alunos -->
-    <section class="section-card">
-      <h2 class="section-title">Gerenciar Alunos</h2>
-      <div id="alunosList" class="alunos-admin-list">
-        <p class="loading-text">Carregando alunos...</p>
-      </div>
-    </section>
+    </div>
 
   </main>
 
@@ -113,6 +178,19 @@
         <button class="modal-close" id="modalClose">&times;</button>
       </div>
       <div id="modalInscritosList" class="modal-body">
+        <p class="loading-text">Carregando...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: detalhes do aluno -->
+  <div id="alunoModal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3 id="alunoModalNome">Detalhes do Aluno</h3>
+        <button class="modal-close" id="alunoModalClose">&times;</button>
+      </div>
+      <div id="alunoModalBody" class="modal-body">
         <p class="loading-text">Carregando...</p>
       </div>
     </div>
