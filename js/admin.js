@@ -567,7 +567,10 @@ document.getElementById("editAlunoForm").addEventListener("submit", async (e) =>
     successDiv.classList.remove("hidden");
     await loadAlunos();
   } catch (err) {
-    errorDiv.textContent = "Erro ao salvar. Tente novamente.";
+    console.error("Erro ao editar aluno:", err);
+    errorDiv.textContent = err.code === "permission-denied"
+      ? "Sem permissão. Verifique as regras do Firestore."
+      : `Erro ao salvar: ${err.message}`;
     errorDiv.classList.remove("hidden");
   } finally {
     btn.disabled = false;
